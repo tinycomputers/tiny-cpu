@@ -43,6 +43,7 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 | WASM | Two Verilated models (`--prefix Vcpu_pipe`/`Vcpu_single`) linked into one module |
 
 ## Conventions
+- NO AI attribution in commits/PRs: never `Co-Authored-By: Claude`, never a Claude author (see CLAUDE.md).
 - SystemVerilog: 4-space indent, `logic`, `always_ff`/`always_comb`, `-Wall` lint clean.
 - Python: 4-space indent, tests under `sim/`, fixed seed 42 (see `sim/conftest.py`).
 - Web: Astro + React islands + Tailwind, TypeScript strict. WASM is loaded only inside

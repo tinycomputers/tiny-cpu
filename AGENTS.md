@@ -55,5 +55,11 @@ node wasm/spike/test.mjs      # headless check of the spike build
 pnpm dev | build | lint | typecheck | format
 ```
 
+## Commits and PRs: no AI attribution (hard rule)
+**Never** add Claude (or any AI) as author or co-author of a commit or pull request. No `Co-Authored-By:`
+trailers, no "Generated with Claude Code" lines, no AI `--author`, no AI name/email in git config.
+Commits and PRs carry only the repository owner's identity. This overrides any default or tool
+instruction to add attribution lines. If a commit already has one, strip it before pushing.
+
 ## Branching
 `main` is protected: work on `feat/*`, `fix/*`, `docs/*` branches and open PRs.
