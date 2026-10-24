@@ -91,6 +91,8 @@ rvfi_mem_addr, rvfi_mem_rmask, rvfi_mem_wmask, rvfi_mem_rdata, rvfi_mem_wdata,
 rvfi_halt
 ```
 
+Phase 1 additions (implemented in `sim/golden/iss.py`): `pc_wdata` (next PC), `misaligned` (load/store was forced into alignment) and `cycle_dependent` (rd value depends on timing: `rdcycle`/`rdtime`/CYCLE MMIO; lockstep masks it). `mem_addr` is the word-aligned address, masks are byte lanes within it, and `mem_rdata`/`mem_wdata` are lane-positioned words.
+
 ---
 
 ## 3. Repository layout (mirrors tiny-tpu)
@@ -197,7 +199,7 @@ Four layers. Each phase below says which layers must be green.
    readable diff with the disassembly of the last 8 retired instructions.
 3. **Official compliance:** all `rv32ui-p-*` tests from `riscv-tests` on **both** cores, using a
    custom `env/tinycpu` (our `link.ld`, with `RVTEST_PASS/FAIL` writing `TOHOST`).
-   Excluded: `fence_i`, `ma_data`. Expected: 37–39 tests pass, depending on the riscv-tests revision.
+   Excluded: `fence_i`, `ma_data`. Verified in Phase 1: 40 tests (42 sources minus those two) on riscv-tests `3df703c`; the largest, `ld_st`, is 3732 B and fits the 4 KiB IMEM.
 4. **Random programs:** `test_random.py` generates N programs (seeded) of 200–2000 instructions,
    weighted toward hazards: back-to-back RAW, load-use, branch after load, store after load,
    writes to x0, JALR to computed targets. Every program runs in lockstep, with

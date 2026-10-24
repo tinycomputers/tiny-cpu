@@ -6,5 +6,6 @@
 _ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 unset VERILATOR_ROOT   # Verilator derives it from its own location; setting it breaks it
 export PATH="$_ROOT/.tools/verilator-install/bin:$_ROOT/.venv/bin:$PATH"
+[ -d "$_ROOT/.tools/riscv-gcc/bin" ] && export PATH="$_ROOT/.tools/riscv-gcc/bin:$PATH"
 [ -f "$_ROOT/.tools/emsdk/emsdk_env.sh" ] && source "$_ROOT/.tools/emsdk/emsdk_env.sh" >/dev/null 2>&1
 unset _ROOT

@@ -16,13 +16,23 @@ Pipeline: `rtl/*.sv` -> Verilator C++ -> Emscripten -> `web/public/tiny_cpu.wasm
 Toolchains are project-local (no root needed). Bootstrap once, then source the env in every shell:
 
 ```bash
-bash .tools/setup.sh && bash .tools/emsdk.sh      # Verilator 5.036 + Emscripten
+bash .tools/setup.sh && bash .tools/emsdk.sh && bash .tools/riscv-gcc.sh   # Verilator 5.036, Emscripten, RISC-V GCC
+git submodule update --init --depth 1                                         # sw/riscv-tests
 python3 -m venv .venv && .venv/bin/pip install -r sim/requirements.txt
 source scripts/env.sh
 ```
 
 Note: `.tools/setup.sh` builds Verilator via CMake, which leaves `PACKAGE_STRING` empty; cocotb parses it,
 so the script patches `src/config_package.h.in` first. Never export `VERILATOR_ROOT`.
+
+### Software images and golden model (Phase 1)
+```bash
+make -C sw all                                  # rv32ui riscv-tests + sim/programs -> sw/build/{riscv-tests,programs}/
+python -m pytest sim/golden -q                  # ISS unit tests, rv32ui-p-*, programs, GNU cross-check
+cd sim && python -m golden.cli run ../sw/build/programs/fib --trace-last 10
+cd sim && python -m golden.gen_isa_ts           # regenerate web/src/lib/isa.ts after editing decode.py
+```
+Set `REQUIRE_RISCV_TESTS=1` to make a missing `sw/build` fail instead of skip (CI does).
 
 ### RTL lint
 ```bash

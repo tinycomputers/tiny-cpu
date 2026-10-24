@@ -2,9 +2,9 @@ name: RTL CI
 
 on:
   push:
-    paths: ['rtl/**', 'sim/**', 'sw/**', '.github/workflows/rtl.yml']
+    paths: ['rtl/**', 'sim/**', 'sw/**', '.tools/riscv-gcc.sh', '.gitmodules', '.github/workflows/rtl.yml']
   pull_request:
-    paths: ['rtl/**', 'sim/**', 'sw/**', '.github/workflows/rtl.yml']
+    paths: ['rtl/**', 'sim/**', 'sw/**', '.tools/riscv-gcc.sh', '.gitmodules', '.github/workflows/rtl.yml']
 
 jobs:
   rtl-ci:
@@ -12,6 +12,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true   # sw/riscv-tests
 
       # cocotb 2.x needs Verilator >= 5.036; the ubuntu-24.04 apt package is older,
       # so build from source and cache by version tag.
@@ -43,6 +45,26 @@ jobs:
 
       - name: Install Python deps
         run: pip install -r sim/requirements.txt
+
+      - name: Cache RISC-V GCC
+        uses: actions/cache@v4
+        with:
+          path: .tools/riscv-gcc
+          key: riscv-gcc-xpack-15.2.0-1-linux-x64
+
+      - name: Install RISC-V GCC
+        run: bash .tools/riscv-gcc.sh
+
+      - name: Build riscv-tests and programs
+        run: |
+          export PATH="$PWD/.tools/riscv-gcc/bin:$PATH"
+          make -C sw all
+
+      # Golden ISS: unit tests, official rv32ui-p-* compliance, example programs, GNU cross-check.
+      - name: Golden ISS tests
+        run: python -m pytest sim/golden -q
+        env:
+          REQUIRE_RISCV_TESTS: '1'   # a missing build is a failure, not a skip
 
       - name: Lint RTL
         run: verilator --lint-only -Wall --top-module counter rtl/spike/counter.sv

@@ -13,7 +13,7 @@ Third in the series after [tiny-gpu](https://github.com/deaneeth/tiny-gpu) and [
 
 </div>
 
-> **Status: Phase 0 (scaffold + toolchain spike).** The CPU itself starts in Phase 1-2.
+> **Status: Phase 1 done (golden model).** A Python RV32I ISS passes all 40 official `rv32ui-p-*` tests; the RTL starts in Phase 2.
 > See [`docs/PLAN.md`](docs/PLAN.md) for the full roadmap.
 
 Every pipeline register, forwarding path and stall the UI will draw is a live `dbg_*` signal from the
@@ -35,8 +35,8 @@ rtl/*.sv -> Verilator C++ -> Emscripten -> web/public/tiny_cpu.wasm -> React isl
 | Path | Contents |
 |---|---|
 | `rtl/` | SystemVerilog (`spike/counter.sv` is the Phase 0 toolchain check) |
-| `sim/` | cocotb tests, golden ISS (Phase 1) |
-| `sw/` | linker script, crt0, riscv-tests port (Phase 1) |
+| `sim/` | golden ISS (`sim/golden/`), cocotb tests, asm programs (`sim/programs/`) |
+| `sw/` | linker script, crt0, riscv-tests port + Makefile |
 | `wasm/` | Verilator -> Emscripten harness |
 | `web/` | Astro + React visualizer |
 | `fpga/` | Yosys/nextpnr flows (Phase 9) |

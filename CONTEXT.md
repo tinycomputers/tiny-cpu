@@ -11,7 +11,18 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 ## Status
 - Phase 0 (scaffold + toolchain spike): DONE. Verified locally: Verilator lint, cocotb (4 tests), WASM spike with two
   Verilated models in one module (Node + browser), web lint/typecheck/build.
-- Next: Phase 1 (Python golden ISS + riscv-tests port).
+- Phase 1 (golden ISS + riscv-tests port): DONE. `sim/golden/` (decode, encode, disasm, ISS, CLI) passes all 40
+  rv32ui-p-* tests, 5 asm programs with pinned console output and instret, and a decode/encode cross-check against
+  GNU objdump. `web/src/lib/isa.ts` is generated from `decode.py`.
+- Next: Phase 2 (building blocks + single-cycle core).
+
+## Interfaces Phase 2+ must honour (defined by the ISS, `sim/golden/iss.py`)
+- Retire record fields, lane/mask conventions, forced alignment, `cycle_dependent` masking: see the module docstring and PLAN 2.4.
+- Image format: `NAME.imem.bin` from 0x0, `NAME.dmem.bin` from 0x10000 (raw little-endian bytes; `.rodata` is in dmem).
+- Program pass/fail: write to TOHOST; 1 = PASS, riscv-tests FAIL = (testnum<<1)|1. Faults (illegal insn, bus fault,
+  misaligned jump) raise in the ISS; the RTL's behaviour there is undefined, so tests never rely on it.
+- `ecall`/`ebreak`/TOHOST halt after the instruction retires. Only `csrrs rd, <cycle|time|instret|*h>, x0` exists.
+- Single-cycle core must retire exactly `instret` instructions in `instret` cycles (`sim/programs/expected.json`).
 
 ## Gotchas found in Phase 0
 - Emscripten lacks pthread affinity APIs; `verilated_threads.cpp` is still required, so link `wasm/emscripten_stubs.cpp`.
@@ -37,3 +48,9 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 - Web: Astro + React islands + Tailwind, TypeScript strict. WASM is loaded only inside
   `client:only="react"` islands, never during SSR.
 - `docs/STATE_SCHEMA.md` and `web/src/lib/state-schema.ts` must stay in sync (from Phase 5).
+
+## Gotchas found in Phase 1
+- No RISC-V target in Emscripten's clang: `.tools/riscv-gcc.sh` downloads the xPack `riscv-none-elf-gcc` (15.2.0-1).
+- Build with `-march=rv32i_zicsr_zifencei`; `sw/Makefile` needs `.SECONDARY:` or make deletes the `.imem.bin` intermediates.
+- Harvard => `.rodata` must live in DMEM (see `sw/link.ld`), never in IMEM.
+- Many rv32ui tests just `#include` the rv64ui source; `sw/env/tinycpu/riscv_test.h` defines `RVTEST_RV64U` for that.
