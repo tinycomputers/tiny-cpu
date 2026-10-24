@@ -67,10 +67,14 @@ jobs:
           REQUIRE_RISCV_TESTS: '1'   # a missing build is a failure, not a skip
 
       - name: Lint RTL
-        run: verilator --lint-only -Wall --top-module counter rtl/spike/counter.sv
+        run: bash scripts/lint.sh
 
-      # Each suite gets its own SIM_BUILD: cocotb does not detect a TOPLEVEL change
-      # across runs sharing one sim_build/ and reuses the stale binary.
-      - name: cocotb - counter spike
-        working-directory: sim
-        run: make MODULE=test_counter TOPLEVEL=counter WAVES=0 SIM_BUILD=sim_build/counter
+      # Unit suites per module, then the single-cycle core in lockstep with the golden ISS over
+      # every riscv-tests image and example program. Each suite has its own SIM_BUILD (see run.sh).
+      - name: cocotb - unit suites
+        run: bash sim/run.sh unit
+
+      - name: cocotb - core lockstep vs ISS
+        run: bash sim/run.sh lockstep
+        env:
+          REQUIRE_RISCV_TESTS: '1'

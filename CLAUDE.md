@@ -34,15 +34,15 @@ cd sim && python -m golden.gen_isa_ts           # regenerate web/src/lib/isa.ts 
 ```
 Set `REQUIRE_RISCV_TESTS=1` to make a missing `sw/build` fail instead of skip (CI does).
 
-### RTL lint
+### RTL lint and simulation (Phase 2)
 ```bash
-verilator --lint-only -Wall --top-module counter rtl/spike/counter.sv   # Phase 0; becomes rtl/*.sv
+bash scripts/lint.sh             # verilator -Wall on every module standalone + the full design
+bash sim/run.sh unit             # cocotb unit suites (one SIM_BUILD per suite)
+bash sim/run.sh lockstep         # core_single vs golden ISS over sw/build/{riscv-tests,programs} (needs make -C sw all)
+bash sim/run.sh all              # everything above
 ```
-
-### Simulation (cocotb, run from `sim/`)
-```bash
-cd sim && make MODULE=test_counter TOPLEVEL=counter VERILOG_SOURCES="$PWD/../rtl/spike/counter.sv" WAVES=0
-```
+Run one suite by hand: `cd sim && make COCOTB_TEST_MODULES=test_alu TOPLEVEL=alu VERILOG_SOURCES="../rtl/tiny_cpu_pkg.sv ../rtl/alu.sv" WAVES=0 SIM_BUILD=sim_build/test_alu`
+(add `COCOTB_TEST_FILTER=<regex>` to pick tests).
 
 ### WASM
 ```bash

@@ -46,3 +46,4 @@ sw/build/
 !.tools/setup.sh
 !.tools/emsdk.sh
 !.tools/riscv-gcc.sh
+sim/results*.xml

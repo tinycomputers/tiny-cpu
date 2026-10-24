@@ -14,7 +14,10 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 - Phase 1 (golden ISS + riscv-tests port): DONE. `sim/golden/` (decode, encode, disasm, ISS, CLI) passes all 40
   rv32ui-p-* tests, 5 asm programs with pinned console output and instret, and a decode/encode cross-check against
   GNU objdump. `web/src/lib/isa.ts` is generated from `decode.py`.
-- Next: Phase 2 (building blocks + single-cycle core).
+- Phase 2 (single-cycle core): DONE. `rtl/` has the pkg, alu, imm_gen, branch_unit, lsu, decoder, regfile, csr_counters,
+  mmio, mem_comb, core_single, tiny_cpu_top. Lint clean; unit suites for every block; `core_single` passes lockstep
+  against the ISS on all 40 riscv-tests + 5 programs, 13 fault cases and CPI == 1. See docs/ARCHITECTURE.md.
+- Next: Phase 3 (5-stage pipeline without hazard handling, `mem_sync.sv`, per-stage `dbg_*` ports).
 
 ## Interfaces Phase 2+ must honour (defined by the ISS, `sim/golden/iss.py`)
 - Retire record fields, lane/mask conventions, forced alignment, `cycle_dependent` masking: see the module docstring and PLAN 2.4.
@@ -55,3 +58,10 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 - Build with `-march=rv32i_zicsr_zifencei`; `sw/Makefile` needs `.SECONDARY:` or make deletes the `.imem.bin` intermediates.
 - Harvard => `.rodata` must live in DMEM (see `sw/link.ld`), never in IMEM.
 - Many rv32ui tests just `#include` the rv64ui source; `sw/env/tinycpu/riscv_test.h` defines `RVTEST_RV64U` for that.
+
+## Gotchas found in Phase 2
+- The regfile write-first bypass belongs to the pipeline only; `core_single` instantiates it with `BYPASS=0` (see ARCHITECTURE.md).
+- cocotb 2.x: use `COCOTB_TEST_MODULES` (not `MODULE`); never pass `COMPILE_ARGS=` on the make command line (it wipes the
+  Makefile's `--prefix Vtop`) - use `EXTRA_ARGS`. After `await ReadOnly()` you cannot write a signal: await a `Timer` first.
+- A test that calls a helper repeatedly must start the clock once (`ensure_clock` in test_core_lockstep.py).
+- Passing tests prove nothing until a mutant fails them: every suite here was mutation-checked; the jalr-bit0 gap was found that way.

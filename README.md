@@ -13,7 +13,7 @@ Third in the series after [tiny-gpu](https://github.com/deaneeth/tiny-gpu) and [
 
 </div>
 
-> **Status: Phase 1 done (golden model).** A Python RV32I ISS passes all 40 official `rv32ui-p-*` tests; the RTL starts in Phase 2.
+> **Status: Phase 2 done (single-cycle core).** The RV32I RTL core retires every instruction identically to the Python golden ISS across all 40 official `rv32ui-p-*` tests and 5 example programs. Next: the 5-stage pipeline.
 > See [`docs/PLAN.md`](docs/PLAN.md) for the full roadmap.
 
 Every pipeline register, forwarding path and stall the UI will draw is a live `dbg_*` signal from the
@@ -34,7 +34,7 @@ rtl/*.sv -> Verilator C++ -> Emscripten -> web/public/tiny_cpu.wasm -> React isl
 
 | Path | Contents |
 |---|---|
-| `rtl/` | SystemVerilog (`spike/counter.sv` is the Phase 0 toolchain check) |
+| `rtl/` | SystemVerilog: single-cycle core + building blocks (`spike/counter.sv` is the Phase 0 toolchain check) |
 | `sim/` | golden ISS (`sim/golden/`), cocotb tests, asm programs (`sim/programs/`) |
 | `sw/` | linker script, crt0, riscv-tests port + Makefile |
 | `wasm/` | Verilator -> Emscripten harness |
@@ -49,7 +49,7 @@ rtl/*.sv -> Verilator C++ -> Emscripten -> web/public/tiny_cpu.wasm -> React isl
 python3 -m venv ~/.venvs/tinycpu && source ~/.venvs/tinycpu/bin/activate
 pip install -r sim/requirements.txt
 verilator --lint-only -Wall --top-module counter rtl/spike/counter.sv
-cd sim && make WAVES=0
+bash scripts/lint.sh && bash sim/run.sh all     # needs: make -C sw all
 
 # WASM spike (needs Verilator + Emscripten)
 bash wasm/spike/build.sh && node wasm/spike/test.mjs

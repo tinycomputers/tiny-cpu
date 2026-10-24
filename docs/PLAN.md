@@ -67,7 +67,7 @@ fits iCE40 BRAM.
 | Memory read timing | **Synchronous** read on both IMEM and DMEM | Maps straight to FPGA BRAM. IMEM is addressed with `pc_next`, so the instruction is ready in IF/ID. DMEM is addressed in EX, so data is ready in MEM. |
 | Branch / JAL / JALR resolution | In **EX**, predict not-taken | Simplest correct design. A taken branch flushes IF/ID and ID/EX (2-cycle penalty), which is very visible in the UI. |
 | Forwarding | EX/MEM→EX and MEM/WB→EX, for both rs1 and rs2 | Standard design. Store data (rs2) is forwarded as well. |
-| Register-file write/read in the same cycle | Write-first bypass inside `regfile.sv` | Removes the WB→ID hazard without an extra forwarding path. |
+| Register-file write/read in the same cycle | Write-first bypass inside `regfile.sv`, parameter `BYPASS` (1 in the pipeline, **0 in the single-cycle core**) | Removes the WB→ID hazard without an extra forwarding path. In the single-cycle core the writer is the reader, so a bypass is wrong and a combinational loop (found in Phase 2). |
 | Load-use hazard | 1-cycle stall: freeze PC and IF/ID, insert a bubble into ID/EX | The only stall in v1. |
 | `x0` | Hard-wired to zero in the register file. Forwarding ignores `rd == 0` | A common bug source; covered by tests. |
 | Runtime knob `cfg_forward_en` | Top-level input pin. When 0, forwarding is disabled and the hazard unit stalls on **every** RAW hazard | Lets the Hazard Lab toggle forwarding live with one WASM build. |
