@@ -1,7 +1,7 @@
 // Top level: a core plus its memories, with the program loader and the debug/retire bus.
 //
-// `CORE` selects the microarchitecture ("SINGLE" now; "PIPE" arrives in Phase 3). The port list is
-// identical for both so the testbenches and the WASM harness never change.
+// `CORE` selects the microarchitecture: "SINGLE" (reference, CPI 1) or "PIPE" (5-stage). The port list
+// is identical for both so the testbenches and the WASM harness never change.
 //
 // Loading a program: hold rst_n low, then for each word pulse load_en with load_sel (0 = IMEM,
 // 1 = DMEM), load_addr (word index) and load_data. Release rst_n to run.
@@ -46,7 +46,20 @@ module tiny_cpu_top
     output logic [31:0]         dbg_pc,
     output logic [32*32-1:0]    dbg_regs,
     output logic [31:0]         dbg_cycle,
-    output logic [31:0]         dbg_instret
+    output logic [31:0]         dbg_instret,
+
+    // Per-stage view for the visualizer: stage index 0=IF 1=ID 2=EX 3=MEM 4=WB. "SINGLE" only
+    // ever populates IF. Hazard flags: Phase 3 has flushes only; stall/load-use/forwarding arrive
+    // in Phase 4 and read 0 until then.
+    output logic [4:0]          dbg_stage_valid,
+    output logic [5*32-1:0]     dbg_stage_pc,
+    output logic [5*32-1:0]     dbg_stage_insn,
+    output logic                dbg_flush_ifid,
+    output logic                dbg_flush_idex,
+    output logic                dbg_stall,
+    output logic                dbg_load_use,
+    output logic [1:0]          dbg_fwd_a,
+    output logic [1:0]          dbg_fwd_b
 );
 
     if (CORE == "SINGLE") begin : g_single
@@ -64,8 +77,12 @@ module tiny_cpu_top
             .rvfi_pc_wdata, .rvfi_mem_addr, .rvfi_mem_rmask, .rvfi_mem_wmask, .rvfi_mem_rdata,
             .rvfi_mem_wdata, .rvfi_misaligned, .rvfi_halt, .rvfi_cycle_dep,
             .console_valid, .console_data, .tohost_valid, .tohost_data,
-            .halted, .fault, .dbg_pc, .dbg_regs, .dbg_cycle, .dbg_instret
+            .halted, .fault, .dbg_pc, .dbg_regs, .dbg_cycle, .dbg_instret,
+            .dbg_stage_valid, .dbg_stage_pc, .dbg_stage_insn
         );
+
+        assign dbg_flush_ifid = 1'b0;
+        assign dbg_flush_idex = 1'b0;
 
         mem_comb #(.WORDS(IMEM_WORDS)) u_imem (
             .clk, .raddr(imem_raddr), .rdata(imem_rdata),
@@ -78,8 +95,46 @@ module tiny_cpu_top
             .wmask(dmem_wmask), .waddr(dmem_waddr), .wdata(dmem_wdata),
             .ld_en(load_en && load_sel), .ld_addr(load_addr[DMEM_AW-1:0]), .ld_data(load_data)
         );
+    end else if (CORE == "PIPE") begin : g_pipe
+        logic               imem_re;
+        logic [IMEM_AW-1:0] imem_raddr;
+        logic [31:0]        imem_rdata;
+        logic [DMEM_AW-1:0] dmem_raddr, dmem_waddr;
+        logic [31:0]        dmem_rdata, dmem_wdata;
+        logic [3:0]         dmem_wmask;
+
+        core_pipe u_core (
+            .clk, .rst_n,
+            .imem_re, .imem_raddr, .imem_rdata,
+            .dmem_raddr, .dmem_rdata, .dmem_wmask, .dmem_waddr, .dmem_wdata,
+            .rvfi_valid, .rvfi_order, .rvfi_pc, .rvfi_insn, .rvfi_rd_addr, .rvfi_rd_wdata,
+            .rvfi_pc_wdata, .rvfi_mem_addr, .rvfi_mem_rmask, .rvfi_mem_wmask, .rvfi_mem_rdata,
+            .rvfi_mem_wdata, .rvfi_misaligned, .rvfi_halt, .rvfi_cycle_dep,
+            .console_valid, .console_data, .tohost_valid, .tohost_data,
+            .halted, .fault, .dbg_pc, .dbg_regs, .dbg_cycle, .dbg_instret,
+            .dbg_stage_valid, .dbg_stage_pc, .dbg_stage_insn, .dbg_flush_ifid, .dbg_flush_idex
+        );
+
+        // IMEM is read-only to the core. DMEM read-new: a load in EX sees the store ahead of it in MEM.
+        mem_sync #(.WORDS(IMEM_WORDS), .READ_NEW(1'b0)) u_imem (
+            .clk, .re(imem_re), .raddr(imem_raddr), .rdata(imem_rdata),
+            .wmask(4'b0000), .waddr('0), .wdata(32'b0),
+            .ld_en(load_en && !load_sel), .ld_addr(load_addr[IMEM_AW-1:0]), .ld_data(load_data)
+        );
+
+        mem_sync #(.WORDS(DMEM_WORDS), .READ_NEW(1'b1)) u_dmem (
+            .clk, .re(1'b1), .raddr(dmem_raddr), .rdata(dmem_rdata),
+            .wmask(dmem_wmask), .waddr(dmem_waddr), .wdata(dmem_wdata),
+            .ld_en(load_en && load_sel), .ld_addr(load_addr[DMEM_AW-1:0]), .ld_data(load_data)
+        );
     end else begin : g_unsupported
-        $error("tiny_cpu_top: CORE=\"%s\" is not implemented yet (only \"SINGLE\")", CORE);
+        $error("tiny_cpu_top: unknown CORE=\"%s\" (use \"SINGLE\" or \"PIPE\")", CORE);
     end
+
+    // Phase 4 drives these; until then no core stalls, forwards, or detects load-use.
+    assign dbg_stall    = 1'b0;
+    assign dbg_load_use = 1'b0;
+    assign dbg_fwd_a    = 2'b00;
+    assign dbg_fwd_b    = 2'b00;
 
 endmodule

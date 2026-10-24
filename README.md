@@ -13,7 +13,7 @@ Third in the series after [tiny-gpu](https://github.com/deaneeth/tiny-gpu) and [
 
 </div>
 
-> **Status: Phase 2 done (single-cycle core).** The RV32I RTL core retires every instruction identically to the Python golden ISS across all 40 official `rv32ui-p-*` tests and 5 example programs. Next: the 5-stage pipeline.
+> **Status: Phase 3 done (5-stage pipeline datapath).** Both RV32I cores retire instructions identically to the Python golden ISS: the single-cycle core on all 40 official `rv32ui-p-*` tests plus 5 programs, the 5-stage core on hazard-free programs. Next: forwarding and hazard stalls so the pipeline runs arbitrary code.
 > See [`docs/PLAN.md`](docs/PLAN.md) for the full roadmap.
 
 Every pipeline register, forwarding path and stall the UI will draw is a live `dbg_*` signal from the
@@ -34,7 +34,7 @@ rtl/*.sv -> Verilator C++ -> Emscripten -> web/public/tiny_cpu.wasm -> React isl
 
 | Path | Contents |
 |---|---|
-| `rtl/` | SystemVerilog: single-cycle core + building blocks (`spike/counter.sv` is the Phase 0 toolchain check) |
+| `rtl/` | SystemVerilog: single-cycle and 5-stage cores + building blocks (`spike/counter.sv` is the Phase 0 toolchain check) |
 | `sim/` | golden ISS (`sim/golden/`), cocotb tests, asm programs (`sim/programs/`) |
 | `sw/` | linker script, crt0, riscv-tests port + Makefile |
 | `wasm/` | Verilator -> Emscripten harness |

@@ -74,7 +74,10 @@ jobs:
       - name: cocotb - unit suites
         run: bash sim/run.sh unit
 
-      - name: cocotb - core lockstep vs ISS
+      - name: cocotb - single-cycle core lockstep vs ISS
         run: bash sim/run.sh lockstep
         env:
           REQUIRE_RISCV_TESTS: '1'
+
+      - name: cocotb - 5-stage core lockstep vs ISS (hazard-free programs)
+        run: bash sim/run.sh pipe

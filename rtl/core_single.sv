@@ -56,7 +56,10 @@ module core_single
     output logic [31:0]           dbg_pc,
     output logic [32*32-1:0]      dbg_regs,
     output logic [31:0]           dbg_cycle,
-    output logic [31:0]           dbg_instret
+    output logic [31:0]           dbg_instret,
+    output logic [4:0]            dbg_stage_valid,  // single-cycle: only [0] (IF) is ever set
+    output logic [5*32-1:0]       dbg_stage_pc,
+    output logic [5*32-1:0]       dbg_stage_insn
 );
 
     // ------------------------------------------------------------------ state
@@ -253,5 +256,9 @@ module core_single
     assign dbg_pc      = pc_q;
     assign dbg_cycle   = cycle_lo;
     assign dbg_instret = instret_lo;
+
+    assign dbg_stage_valid = {4'b0, active};
+    assign dbg_stage_pc    = {128'b0, pc_q};
+    assign dbg_stage_insn  = {128'b0, insn};
 
 endmodule

@@ -17,7 +17,10 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 - Phase 2 (single-cycle core): DONE. `rtl/` has the pkg, alu, imm_gen, branch_unit, lsu, decoder, regfile, csr_counters,
   mmio, mem_comb, core_single, tiny_cpu_top. Lint clean; unit suites for every block; `core_single` passes lockstep
   against the ISS on all 40 riscv-tests + 5 programs, 13 fault cases and CPI == 1. See docs/ARCHITECTURE.md.
-- Next: Phase 3 (5-stage pipeline without hazard handling, `mem_sync.sv`, per-stage `dbg_*` ports).
+- Phase 3 (5-stage pipeline, no forwarding/stall): DONE. `mem_sync.sv`, `core_pipe.sv`, `CORE="PIPE"` in the top, uniform
+  per-stage `dbg_*` ports on both cores, `golden/progbuild.py` + `hazard_free.py`. 74 pipe lockstep tests pass; 7 mutants killed.
+  Taken-branch flush landed here (not Phase 4) because lockstep needs it. See docs/ARCHITECTURE.md.
+- Next: Phase 4 (`forward_unit`, `hazard_unit`: load-use stall + `cfg_forward_en`, pinned hazard cycle counts, riscv-tests on PIPE).
 
 ## Interfaces Phase 2+ must honour (defined by the ISS, `sim/golden/iss.py`)
 - Retire record fields, lane/mask conventions, forced alignment, `cycle_dependent` masking: see the module docstring and PLAN 2.4.
@@ -65,3 +68,10 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
   Makefile's `--prefix Vtop`) - use `EXTRA_ARGS`. After `await ReadOnly()` you cannot write a signal: await a `Timer` first.
 - A test that calls a helper repeatedly must start the clock once (`ensure_clock` in test_core_lockstep.py).
 - Passing tests prove nothing until a mutant fails them: every suite here was mutation-checked; the jalr-bit0 gap was found that way.
+
+## Gotchas found in Phase 3
+- Pipeline needs a write-first DMEM (`mem_sync` READ_NEW=1): a load in EX reads at the same edge the store ahead of it writes.
+- Run a PIPE suite with `TINYCPU_CORE=PIPE` and `-G'CORE="PIPE"'` (sim/run.sh pipe does both); `CORE` is a string parameter.
+- Cycle-dependent registers must be masked in the final register compare too, not only per retire.
+- Dynamic hazard distance != static: instructions at jump targets skip the jump's padding (use `raw_hazards()` on the ISS trace).
+- Hazard-free means >= 3 instructions between producer and consumer (2 NOPs) for this pipeline; `Prog.li/exit/putc` add gap NOPs at pad<2.

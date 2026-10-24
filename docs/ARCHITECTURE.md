@@ -54,7 +54,59 @@ One instruction retires per clock (CPI = 1), so `cycles == instret`; the lockste
 * `cycle_dependent` retires (`rdcycle`, `rdtime`, the CYCLE MMIO read) are flagged by the RTL and masked by
   the lockstep comparison, because the ISS cannot know pipeline timing.
 
-## Verification (Phase 2)
+## 5-stage pipelined core (`rtl/core_pipe.sv`, Phase 3)
+
+```
+ pc_q --> IMEM(sync) ==> [IF/ID] --> decode, regfile read ==> [ID/EX] --> ALU, branch ==> [EX/MEM] --> LSU, MMIO ==> [MEM/WB] --> reg write, retire
+  ^        addressed        id_pc                                          DMEM addressed here                      store/console/tohost                 CCSR read
+  |        by pc_q                                                         (sync read)                              effects happen here
+  +--------------------------- redirect (taken branch / jal / jalr) from EX: flush IF/ID + ID/EX ---------------------------+
+```
+
+Real output of `sim/test_pipe_lockstep.py::five_instructions_overlap_and_flushes_match_redirects` (each cell is the pc
+in that stage after the clock edge; the `jal` at 0x48 is in EX when it flushes):
+
+```
+cycle  IF       ID       EX       MEM      WB
+   18  0x0048   0x0044   0x0040   0x003c   0x0038      five instructions in flight
+   19  0x004c   0x0048   0x0044   0x0040   0x003c
+   20  0x0050   0x004c   0x0048   0x0044   0x0040    <- flush (jal 0x48 -> 0x54)
+   21  0x0054     --       --     0x0048   0x0044      two bubbles = the 2-cycle penalty
+   22  0x0058   0x0054     --       --     0x0048
+```
+
+Phase 3 scope: datapath, flush, faults and halt. **No forwarding and no load-use stall yet** - producers must be
+>= 3 instructions ahead of consumers (the register file's write-first bypass covers WB->ID). Phase 4 adds the
+hazard/forward units, after which the riscv-tests images run on this core too.
+
+Deviation from the original plan: the taken-branch flush is in Phase 3, not 4. Without it the NOPs after a taken
+branch retire on the wrong path and the lockstep stream can never match the ISS.
+
+### Timing contract
+* **Synchronous memories.** `pc_q` is the IMEM address; the BRAM output register *is* the instruction in ID, with `id_pc`
+  carried beside it. DMEM is addressed in EX, so load data is back in MEM, where the LSU extracts and extends it.
+  The IF stage therefore has no instruction word to show (`dbg_stage_insn[IF] = 0`; look it up from the pc).
+* **Write-first DMEM** (`mem_sync` `READ_NEW=1`). A load reads DMEM in EX at the same clock edge at which the store
+  ahead of it writes in MEM; without write-first the load returns stale data. This is the memory twin of a forwarding
+  path, and `mem_raw_adjacent` pins it (the only test that fails when it is removed).
+* **Cycle count.** First retire is visible after 5 edges, then one per cycle: `cycles = instret + 4 + 2 * redirects`.
+  The lockstep test asserts this exactly, and the flush flag fires once per redirect.
+* **CSR read in WB.** `instret` seen by an instruction equals the number retired before it, as in the ISS.
+  `dbg_pc` is the *architectural* pc (next instruction to retire), not the fetch pc.
+
+### Precise faults and halt
+A faulting or halting instruction travels to WB like any other. While it sits there (`older_stop`) younger
+instructions in MEM are gated from writing DMEM, CONSOLE or TOHOST; once it leaves, `active` freezes the core.
+Faulting instructions never retire; nothing younger ever retires. `younger_instructions_have_no_effect_after_*`
+runs dense code with stores directly behind the faulting/halting instruction and checks that nothing leaks.
+
+### Lessons
+* `lockstep` must mask registers last written by timing-dependent reads (rdcycle, CYCLE MMIO) in the *final*
+  register compare as well as per-retire; the single-cycle core hid this because there cycle == instret.
+* A taken jump flushes its own padding NOPs, so the instruction at a jump *target* is only 1 instruction behind the
+  jump's link register. `Prog` pads after instructions, not at labels: the dynamic `raw_hazards()` check found this.
+
+## Verification (Phase 2 and 3)
 
 | Layer | Where | What |
 |---|---|---|
@@ -63,4 +115,7 @@ One instruction retires per clock (CPI = 1), so `cycles == instret`; the lockste
 | Lockstep | `sim/test_core_lockstep.py` | 45 images (40 riscv-tests + 5 programs) retire-for-retire against the ISS; 13 fault cases; halt/frozen-core checks; CPI = 1 |
 | Lint | `scripts/lint.sh` | `-Wall` clean for every module standalone and the whole design |
 
-Run: `bash scripts/lint.sh && bash sim/run.sh all` (after `make -C sw all`).
+| Pipeline lockstep | `sim/test_pipe_lockstep.py` | 9 hazard-free programs + 60 random ones retire-for-retire vs the ISS; 13 fault cases; younger-instruction gating after fault/halt; exact cycle formula; 5-deep overlap; flush count |
+| Program builder | `sim/golden/progbuild.py`, `hazard_free.py` | `Prog(pad=N)` mini-assembler; `raw_hazards()` proves a program hazard-free from its dynamic ISS trace (no toolchain needed) |
+
+Run: `bash scripts/lint.sh && bash sim/run.sh all` (after `make -C sw all`). `all` = unit + lockstep (single-cycle) + pipe.

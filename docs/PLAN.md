@@ -359,7 +359,7 @@ Estimates assume one person working part-time, roughly at the pace of tiny-tpu.
 
 ### Phase 3: Pipelined core without hazard handling (1 week)
 - `mem_sync`, `core_pipe` with IF/ID/EX/MEM/WB registers (packed structs), `dbg_*` ports per stage.
-- Hazards are handled by hand-inserted NOPs only. A `hazard_free/*.S` set proves the datapath works.
+- Data hazards are avoided by construction (NOP padding via `golden/progbuild.py`); `hazard_free.py` holds the program set. The taken-branch flush is included here because lockstep cannot match the ISS without it.
 - **Exit:** the hazard-free programs pass lockstep; the waveform in GTKWave shows the 5-stage overlap.
 
 ### Phase 4: Hazards (1.5 weeks)

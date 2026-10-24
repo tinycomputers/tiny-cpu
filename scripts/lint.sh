@@ -5,11 +5,11 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 PKG=rtl/tiny_cpu_pkg.sv
-LEAVES="alu imm_gen branch_unit lsu decoder regfile csr_counters mmio mem_comb"
-ALL="$PKG"; for m in $LEAVES core_single tiny_cpu_top; do ALL+=" rtl/$m.sv"; done
+LEAVES="alu imm_gen branch_unit lsu decoder regfile csr_counters mmio mem_comb mem_sync"
+ALL="$PKG"; for m in $LEAVES core_single core_pipe tiny_cpu_top; do ALL+=" rtl/$m.sv"; done
 status=0
 
-lint() {  # lint <top> <files...>
+lint() {  # lint <top> [-G...] <files...>
     local top=$1; shift
     if ! out=$(verilator --lint-only -Wall --top-module "$top" "$@" 2>&1); then
         echo "LINT FAILED: $top"; echo "$out"; status=1
@@ -22,6 +22,8 @@ lint() {  # lint <top> <files...>
 
 for m in $LEAVES; do lint "$m" "$PKG" "rtl/$m.sv"; done
 lint core_single $ALL
+lint core_pipe $ALL
 lint tiny_cpu_top $ALL
+lint tiny_cpu_top '-GCORE="PIPE"' $ALL   # the PIPE generate branch is not elaborated by default
 lint counter rtl/spike/counter.sv
 exit $status
