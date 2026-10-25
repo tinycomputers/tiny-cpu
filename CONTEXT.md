@@ -26,7 +26,13 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 - Phase 5 (WASM harness): DONE. `wasm/harness.cpp` owns both Verilated models (`Vcpu_single`, `Vcpu_pipe`, CORE param) behind
   one `TinyCpuSim`. `wasm/build.sh` builds 194 KB raw / 77 KB gzipped. `wasm/test.mjs`: 534 checks over 4 fixtures on both cores.
   The contract is `docs/STATE_SCHEMA.md`.
-- Next: Phase 6 (assembler + core UI in `web/`: `assembler.ts`, `state-schema.ts` mirror, `useTinyCpu`, L2 pipeline view first).
+- Phase 6 (web app, first slice): DONE. `web/src/lib/assembler.ts` (two passes, GNU-identical bytes on 26 sources), `disassembler.ts`,
+  `state-schema.ts` (mirror + validator), `runner.ts`, `run-model.ts`, `useTinyCpu`, and the `/app` page: source editor, L2 pipeline
+  view, stage timeline, cycle controls, registers, data memory, console, stats. 53 Vitest + 4 Playwright tests at that point.
+- Phase 7 (views): DONE. L1 datapath SVG (`DatapathView`, values from a single-cycle run of the same program, `datapath.ts`),
+  L3 hazard lab (`hazard-lab.ts`: 8 cases, each run on pipeline fwd/no-fwd and single-cycle), L4 programs comparison and data-memory
+  heatmap (`programs-compare.ts`, `Heatmap`), light/dark theme toggle that restores its saved choice. 67 Vitest + 9 Playwright.
+- Next: docs pages and launch (PLAN section 8, the non-app pages); Phase 8 per docs/PLAN.md.
 
 ## Interfaces Phase 2+ must honour (defined by the ISS, `sim/golden/iss.py`)
 - Retire record fields, lane/mask conventions, forced alignment, `cycle_dependent` masking: see the module docstring and PLAN 2.4.
@@ -97,3 +103,20 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 - Emscripten's temporaries and Verilator output live under `wasm/build/` (on the project disk); the system disk was full twice
   during this project, and `/tmp` writes broke tool output.
 - Both models are held in reset while `loadImem`/`loadDmem` run, so an inactive model is never clocked by accident.
+
+## Gotchas found in Phase 6
+- GNU as accepts `;` as a statement separator (the macro programs use it) and pads `.text` with a zero byte plus `c.nop` (01 00)
+  when the start is odd. `snippet/text_alignment` pins the padding.
+- The linker script's `ALIGN(4)` pads `.data` output; the GNU reference strips those lines before linking (program bytes only).
+- A branch target printed as `0xffffffd4` from pc 0 must assemble to offset -44: addresses wrap modulo 2^32.
+- `vitest` picks up `*.spec.ts`; `vitest.config.ts` limits it to `src/**/*.test.ts` so the Playwright specs in `e2e/` stay separate.
+- A stale `astro dev` process on port 4321 made the Playwright webServer reuse it; stop dev servers first.
+- Deviations from PLAN section 8: the editor is a textarea with a line gutter (no CodeMirror); each run keeps its full cycle history
+  (capped at 20,000) instead of a ring buffer, so stepping backwards is exact.
+
+## Gotchas found in Phase 7
+- Hazard-case programs must avoid accidental dependencies: the "independent" case first had an `add` one instruction after a
+  write to `t1`, which made it a distance-1 hazard. The Vitest suite caught it (forwarding on/off cycles differed).
+- The datapath view needs operand values, which a pipeline run does not expose per instruction. It reads them from a single-cycle
+  run of the same program; both cores compute the same architecture, so the values match.
+- `tabpanel` ids and `aria-controls` must match the tab ids exactly, or the Playwright role queries and screen readers miss them.

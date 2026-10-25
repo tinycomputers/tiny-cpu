@@ -46,3 +46,46 @@ test("another preset prints its answer", async ({ page }) => {
   await expect(page.locator("pre").filter({ hasText: "6765" })).toBeVisible();
   await expect(halted(page)).toBeVisible();
 });
+
+test("the hazard lab shows the measured forwarding difference", async ({ page }) => {
+  await page.goto("/app/");
+  await expect(recorded(page)).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("tab", { name: "L3 Hazard lab" }).click();
+  await page.getByRole("button", { name: "ALU to ALU, distance 1" }).click();
+  await expect(page.getByRole("cell", { name: "5-stage, forwarding on" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "single-cycle" })).toBeVisible();
+});
+
+test("the datapath view shows the instruction that retired", async ({ page }) => {
+  await page.goto("/app/");
+  await expect(recorded(page)).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("tab", { name: "L1 Datapath" }).click();
+  await page.getByRole("button", { name: "Go to end" }).click();
+  await expect(page.getByRole("img", { name: /Single-cycle datapath for/ })).toBeVisible();
+  await expect(page.getByText(/retire #/)).toBeVisible();
+});
+
+test("the programs view lists every preset with PASS", async ({ page }) => {
+  await page.goto("/app/");
+  await expect(recorded(page)).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("tab", { name: "L4 Programs" }).click();
+  await expect(page.getByRole("cell", { name: "PASS" })).toHaveCount(5);
+  await expect(page.getByRole("img", { name: "Data memory access heatmap" })).toBeVisible();
+});
+
+test("the layout has no horizontal page scroll at phone width", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/app/");
+  await expect(recorded(page)).toBeVisible({ timeout: 60_000 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test("the theme toggle switches the colour scheme", async ({ page }) => {
+  await page.goto("/app/");
+  await expect(recorded(page)).toBeVisible({ timeout: 60_000 });
+  const before = await page.evaluate(() => document.documentElement.getAttribute("data-theme"));
+  await page.getByRole("button", { name: /Switch to (light|dark) theme/ }).click();
+  const after = await page.evaluate(() => document.documentElement.getAttribute("data-theme"));
+  expect(after).not.toBe(before);
+});

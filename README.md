@@ -13,9 +13,9 @@ Third in the series after [tiny-gpu](https://github.com/deaneeth/tiny-gpu) and [
 
 </div>
 
-> **Status: Phase 6 done (web app, first slice).** The browser app at `/app` assembles RV32I, runs it on either core in the browser, and steps through every cycle with the pipeline, registers, memory and console. Next: the remaining views.
+> **Status: Phase 7 done (views).** The app at `/app` has four views: the pipeline, the single-cycle datapath, a hazard lab that measures each hazard on the pipeline with and without forwarding, and a programs comparison with a data-memory heatmap. Next: the docs pages and launch.
 >
-> *Previous: Phase 5 done (WASM harness).* Both cores run in one WebAssembly module (`wasm/build.sh`, 77 KB gzipped) and pass the golden fixtures in Node (`node wasm/test.mjs`). Next: the web app.
+> *Previous: Phase 6 done (web app, first slice); Phase 5 done (WASM harness).* Both cores run in one WebAssembly module (`wasm/build.sh`, 77 KB gzipped) and pass the golden fixtures in Node (`node wasm/test.mjs`). Next: the web app.
 >
 > *Previous: Phase 4 done (hazards).* Both RV32I cores retire instructions identically to the Python golden ISS on all 40 official `rv32ui-p-*` tests, 5 programs and hundreds of random programs. The 5-stage core has forwarding and load-use stalls (switchable at runtime) and matches an independent timing model cycle for cycle. Next: the WASM harness.
 > See [`docs/PLAN.md`](docs/PLAN.md) for the full roadmap.

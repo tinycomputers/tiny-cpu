@@ -181,3 +181,26 @@ Size: 194 KB raw, 77 KB gzipped (budget 400 KB), enforced by `build.sh`.
   statistics. Single-cycle runs show one instruction per cycle; hazard badges appear only for the pipeline.
 * **Checks**: `web/src/lib/__tests__/` (Vitest, 53 tests, including every preset on both cores with forwarding on and off, read
   against the expected console output) and `web/e2e/` (Playwright, 4 tests against the production build).
+
+## Views (Phase 7)
+
+The `/app` page has four views selected by `LevelTabs`:
+
+* **L2 Pipeline** (default): stage cards, hazard badges, and the stage timeline (as in Phase 6).
+* **L1 Datapath** (`DatapathView`, SVG, fixed 900x430 coordinates): highlights the wires the current retired instruction uses and
+  labels them with the values read from the register file and the retire record. `datapath.ts` derives those values from a
+  single-cycle run of the same program: operands come from the register file before the instruction, results from its retire
+  record. A pipeline run does not expose per-instruction operands, so the single-cycle run supplies them; the architecture is
+  identical on both cores.
+* **L3 Hazard lab** (`HazardLab`, `hazard-lab.ts`): eight short programs, one per hazard kind (independent, ALU distance 1 and 2,
+  load-use, store of a loaded value, store then load, taken and not-taken branches). Each runs on the pipeline with forwarding on,
+  the pipeline with forwarding off, and the single-cycle core. The table shows cycles, stalls, flushes and the difference from
+  single-cycle; the timelines show the first eight cycles.
+* **L4 Programs** (`ProgramsView`, `programs-compare.ts`): every preset on the single-cycle core and the pipeline, with CPI and
+  PASS/FAIL, plus a data-memory heatmap of loads and stores per word (`accessCounts` in `run-model.ts`).
+
+Tests: `web/src/lib/__tests__/phase7.test.ts` (67 Vitest tests in the suite now) runs these against the WASM module, and
+`web/e2e/app.spec.ts` (9 Playwright tests) covers the tabs, the hazard lab, the datapath, the programs view, phone width with no
+horizontal scroll, and the theme toggle.
+
+Clock speed is not modelled: the cycle counts are what the programs view reports, and Phase 9's FPGA numbers will turn them into time.

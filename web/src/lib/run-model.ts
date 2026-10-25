@@ -22,6 +22,22 @@ export interface RunModel {
   consoleAt(index: number): string;
 }
 
+/** Loads and stores to each data word over a whole run; index = (address - DATA_BASE) / 4. */
+export function accessCounts(states: readonly CycleState[], dmemBytes: number): { reads: Uint32Array; writes: Uint32Array } {
+  const words = Math.ceil(dmemBytes / 4);
+  const reads = new Uint32Array(words);
+  const writes = new Uint32Array(words);
+  for (const s of states) {
+    const r = s.retired;
+    if (!r || (r.memRmask === 0 && r.memWmask === 0)) continue;
+    const idx = (r.memAddr - DATA_BASE) >>> 2;
+    if (r.memAddr < DATA_BASE || idx >= words) continue; // MMIO or outside DMEM
+    if (r.memRmask) reads[idx] = (reads[idx] ?? 0) + 1;
+    if (r.memWmask) writes[idx] = (writes[idx] ?? 0) + 1;
+  }
+  return { reads, writes };
+}
+
 export function buildRunModel(states: readonly CycleState[], initialDmem: Uint8Array): RunModel {
   const n = states.length;
   // Cumulative counters, one entry per state.

@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { DatapathView } from "./DatapathView";
+import { HazardLab } from "./HazardLab";
+import { LevelTabs, type Level } from "./LevelTabs";
+import { ProgramsView } from "./ProgramsView";
 import { AsmEditor } from "./AsmEditor";
 import { ConsolePanel } from "./ConsolePanel";
 import { Controls } from "./Controls";
@@ -10,11 +14,14 @@ import { StatsBar } from "./StatsBar";
 import { PRESETS } from "../lib/programs";
 import { MAX_CYCLES, useTinyCpu } from "../hooks/useTinyCpu";
 import { DATA_BASE } from "../lib/run-model";
+import { datapathFor, lastRetireOrder } from "../lib/datapath";
+import { runProgram } from "../lib/runner";
 
 export default function CpuApp() {
   const cpu = useTinyCpu(PRESETS[0]?.source ?? "");
   const [presetId, setPresetId] = useState(PRESETS[0]?.id ?? "");
   const [autoRan, setAutoRan] = useState(false);
+  const [level, setLevel] = useState<Level>("pipeline");
 
   // Run the first preset once the WASM module is ready, so the page opens with a trace to step through.
   useEffect(() => {
@@ -31,6 +38,16 @@ export default function CpuApp() {
     (session.config.source !== cpu.source ||
       session.config.core !== cpu.core ||
       session.config.forwarding !== cpu.forwarding);
+
+  // The datapath view shows the single-cycle core. For a pipeline run, the same program is run once on SINGLE, so
+  // operand values are exact for the instruction that retired most recently.
+  const singleRun = useMemo(() => {
+    if (level !== "datapath" || !session || !cpu.mod) return null;
+    if (session.config.core === "SINGLE") return session.run;
+    return runProgram(cpu.mod, session.asm, { core: "SINGLE", forwarding: true, maxCycles: MAX_CYCLES });
+  }, [level, session, cpu.mod]);
+  const order = session ? lastRetireOrder(session.run.states, cpu.index) : undefined;
+  const dp = singleRun && order !== undefined ? datapathFor(singleRun.states, order) : null;
 
   const state = cpu.current;
   const prev = cpu.previous;
@@ -121,57 +138,89 @@ export default function CpuApp() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Panel title="Source">
-          <AsmEditor value={cpu.source} onChange={cpu.setSource} errors={cpu.errors} activeLine={activeLine} />
-        </Panel>
-        <Panel title="Pipeline">
-          <PipelineView
-            state={state}
-            asm={session?.asm ?? emptyAsm}
-            model={session?.model ?? emptyModel}
-            index={cpu.index}
-            core={cpu.core}
-          />
-        </Panel>
-      </div>
+      <LevelTabs value={level} onChange={setLevel} />
 
-      <Panel title="Cycle">
-        <div className="flex flex-col gap-3">
-          <Controls
-            index={cpu.index}
-            last={cpu.last}
-            playing={cpu.playing}
-            speed={cpu.speed}
-            onGoTo={cpu.goTo}
-            onStep={cpu.stepBy}
-            onPlay={cpu.setPlaying}
-            onSpeed={cpu.setSpeed}
-            disabled={!session}
-          />
-          <StatsBar stats={stats} core={cpu.core} forwarding={cpu.forwarding} status={status} />
+      {(level === "pipeline" || level === "datapath") && (
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <Panel title="Source">
+            <AsmEditor value={cpu.source} onChange={cpu.setSource} errors={cpu.errors} activeLine={activeLine} />
+          </Panel>
+          <div role="tabpanel" id={`panel-${level}`} aria-labelledby={`tab-${level}`} className="min-w-0">
+            {level === "pipeline" ? (
+              <Panel title="Pipeline">
+                <PipelineView
+                  state={state}
+                  asm={session?.asm ?? emptyAsm}
+                  model={session?.model ?? emptyModel}
+                  index={cpu.index}
+                  core={cpu.core}
+                />
+              </Panel>
+            ) : (
+              <Panel title="Datapath (single-cycle core)">
+                <DatapathView info={dp} />
+              </Panel>
+            )}
+          </div>
         </div>
-      </Panel>
+      )}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Panel title="Registers">
-          <RegisterFile state={state} previous={prev} />
-        </Panel>
-        <Panel title="Data memory">
-          {session ? (
-            <MemoryView
-              bytes={session.model.memoryAt(cpu.index)}
-              previous={cpu.index > 0 ? session.model.memoryAt(cpu.index - 1) : null}
-              length={memLength}
-            />
-          ) : (
-            <p className="text-sm text-[var(--muted)]">Data starts at 0x{DATA_BASE.toString(16)}.</p>
-          )}
-        </Panel>
-        <Panel title="Console">
-          <ConsolePanel text={consoleText} status={session ? `${session.run.states.length} cycles recorded` : ""} />
-        </Panel>
-      </div>
+      {level === "hazards" && (
+        <div role="tabpanel" id="panel-hazards" aria-labelledby="tab-hazards">
+          <Panel title="Hazard lab">
+            <HazardLab mod={cpu.mod} />
+          </Panel>
+        </div>
+      )}
+
+      {level === "programs" && (
+        <div role="tabpanel" id="panel-programs" aria-labelledby="tab-programs">
+          <Panel title="Programs: single-cycle vs pipeline">
+            <ProgramsView mod={cpu.mod} />
+          </Panel>
+        </div>
+      )}
+
+      {(level === "pipeline" || level === "datapath") && (
+        <>
+          <Panel title="Cycle">
+            <div className="flex flex-col gap-3">
+              <Controls
+                index={cpu.index}
+                last={cpu.last}
+                playing={cpu.playing}
+                speed={cpu.speed}
+                onGoTo={cpu.goTo}
+                onStep={cpu.stepBy}
+                onPlay={cpu.setPlaying}
+                onSpeed={cpu.setSpeed}
+                disabled={!session}
+              />
+              <StatsBar stats={stats} core={cpu.core} forwarding={cpu.forwarding} status={status} />
+            </div>
+          </Panel>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <Panel title="Registers">
+              <RegisterFile state={state} previous={prev} />
+            </Panel>
+            <Panel title="Data memory">
+              {session ? (
+                <MemoryView
+                  bytes={session.model.memoryAt(cpu.index)}
+                  previous={cpu.index > 0 ? session.model.memoryAt(cpu.index - 1) : null}
+                  length={memLength}
+                />
+              ) : (
+                <p className="text-sm text-[var(--muted)]">Data starts at 0x{DATA_BASE.toString(16)}.</p>
+              )}
+            </Panel>
+            <Panel title="Console">
+              <ConsolePanel text={consoleText} status={session ? `${session.run.states.length} cycles recorded` : ""} />
+            </Panel>
+          </div>
+        </>
+      )}
     </div>
   );
 }

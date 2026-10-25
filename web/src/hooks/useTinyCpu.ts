@@ -83,6 +83,7 @@ export function useTinyCpu(initialSource: string) {
     forwarding,
     setForwarding,
     wasm,
+    mod: wasm.kind === "ready" ? wasm.mod : null,
     errors,
     session,
     index: clamp(index),
