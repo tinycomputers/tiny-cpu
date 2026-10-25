@@ -47,11 +47,14 @@ bash sim/run.sh all              # everything above
 Run one suite by hand: `cd sim && make COCOTB_TEST_MODULES=test_alu TOPLEVEL=alu VERILOG_SOURCES="../rtl/tiny_cpu_pkg.sv ../rtl/alu.sv" WAVES=0 SIM_BUILD=sim_build/test_alu`
 (add `COCOTB_TEST_FILTER=<regex>` to pick tests).
 
-### WASM
+### WASM (Phase 5)
 ```bash
-bash wasm/spike/build.sh      # Phase 0 toolchain spike -> web/public/spike/
-node wasm/spike/test.mjs      # headless check of the spike build
+bash wasm/build.sh               # both cores -> web/public/tiny_cpu.{mjs,wasm}; enforces the 400 KB gzipped budget
+node wasm/test.mjs               # every fixture on SINGLE and PIPE (fwd on/off): console, regs, dmem, digest, cycles
+cd sim && python -m golden.wasm_fixtures   # regenerate wasm/test/fixtures.json after changing the golden model
+bash wasm/spike/build.sh && node wasm/spike/test.mjs   # Phase 0 toolchain check
 ```
+Both `web/public/tiny_cpu.{mjs,wasm}` are committed: the web app and Vercel have no Emscripten.
 
 ### Frontend (from `web/`)
 ```bash

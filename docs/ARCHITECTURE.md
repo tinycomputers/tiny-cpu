@@ -145,3 +145,22 @@ runs dense code with stores directly behind the faulting/halting instruction and
 | Program builder | `sim/golden/progbuild.py`, `hazard_free.py` | `Prog(pad=N)` mini-assembler; `raw_hazards()` proves a program hazard-free from its dynamic ISS trace (no toolchain needed) |
 
 Run: `bash scripts/lint.sh && bash sim/run.sh all` (after `make -C sw all`). `all` = unit + lockstep (single-cycle) + pipe.
+
+
+## WASM harness (Phase 5)
+
+`wasm/harness.cpp` Verilates `tiny_cpu_top` twice - `CORE="SINGLE"` and `CORE="PIPE"` - with distinct `--prefix`, and links
+both into one module. `TinyCpuSim` owns both models and `reset(core)` selects one; program memory is written to both, and
+both are held in reset while loading, so the inactive core is never clocked by accident.
+
+Every value comes from an output port of the Verilated model. The one exception is data memory, which the RTL does not
+expose: the harness keeps a shadow copy fed from the retire records (`rvfi_mem_*`). The JavaScript contract is
+`docs/STATE_SCHEMA.md`.
+
+Verification (`node wasm/test.mjs`, 534 checks): each fixture in `wasm/test/fixtures.json` runs on SINGLE and on PIPE with
+forwarding on and off. It checks console output, final registers (timing-dependent ones excluded), data memory, instruction
+count, the SHA-256 of the retire stream against the Python ISS, the halt/tohost behaviour, and the cycle count against the
+pipeline model. Four mutations were caught: a forwarding pin ignored, a console byte dropped, a cycle counter off by one, and
+the shadow memory's byte order reversed.
+
+Size: 194 KB raw, 77 KB gzipped (budget 400 KB), enforced by `build.sh`.

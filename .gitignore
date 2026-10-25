@@ -24,12 +24,12 @@ sim/results.xml
 # WASM build intermediates and generated artifacts
 wasm/build/
 wasm/spike/counter.mjs
-web/public/tiny_cpu.mjs
 web/public/spike/
 
 *.o
 *.wasm
-!web/public/tiny_cpu.wasm
+!web/public/tiny_cpu.wasm   # shipped artifacts: the web app and Vercel build have no Emscripten
+!web/public/tiny_cpu.mjs
 
 # Toolchain checkouts
 .emsdk/

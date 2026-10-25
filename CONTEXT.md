@@ -23,7 +23,10 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 - Phase 4 (hazards): DONE. `forward_unit`, `hazard_unit`, `cfg_forward_en` pin, dbg stall/load-use/fwd flags. The pipeline runs the
   40 riscv-tests + all programs + 260 random programs in lockstep in BOTH modes, cycle-exact against `golden/pipemodel.py`.
   11 mutants killed. `sim/perf_baseline.json` pins cycles per core/mode.
-- Next: Phase 5 (WASM harness: dual-model build, `TinyCpuSim` API, `docs/STATE_SCHEMA.md`, Node test).
+- Phase 5 (WASM harness): DONE. `wasm/harness.cpp` owns both Verilated models (`Vcpu_single`, `Vcpu_pipe`, CORE param) behind
+  one `TinyCpuSim`. `wasm/build.sh` builds 194 KB raw / 77 KB gzipped. `wasm/test.mjs`: 534 checks over 4 fixtures on both cores.
+  The contract is `docs/STATE_SCHEMA.md`.
+- Next: Phase 6 (assembler + core UI in `web/`: `assembler.ts`, `state-schema.ts` mirror, `useTinyCpu`, L2 pipeline view first).
 
 ## Interfaces Phase 2+ must honour (defined by the ISS, `sim/golden/iss.py`)
 - Retire record fields, lane/mask conventions, forced alignment, `cycle_dependent` masking: see the module docstring and PLAN 2.4.
@@ -85,3 +88,12 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 - A flush hides the stall of the squashed instruction (`jal rd; use rd` costs 2 either way).
 - `RANDOM_SEEDS=N bash sim/run.sh pipe` scales the random sweep (default 200 per mode); mutation runs use 40.
 - The root filesystem filled during a long mutation sweep (home caches, not this repo): keep `/tmp` and logs small.
+
+## Gotchas found in Phase 5
+- Hazard-free programs take the same cycles with forwarding on and off (that is what hazard-free means), so they cannot test
+  the forwarding pin. The fixture set includes one hazard-dense program that must differ, and the generator asserts it.
+- A harness that re-implements data memory would be tested against itself. The shadow copy is fed only from retire records
+  (rvfi_mem_*), and `test.mjs` checks it against the ISS for every store the fixtures make.
+- Emscripten's temporaries and Verilator output live under `wasm/build/` (on the project disk); the system disk was full twice
+  during this project, and `/tmp` writes broke tool output.
+- Both models are held in reset while `loadImem`/`loadDmem` run, so an inactive model is never clocked by accident.
