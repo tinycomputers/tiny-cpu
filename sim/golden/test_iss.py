@@ -294,3 +294,12 @@ def test_retire_order_and_pc_chain():
     assert [r.order for r in trace] == list(range(len(trace)))
     for a, b in zip(trace, trace[1:]):
         assert a.pc_wdata == b.pc
+
+
+def test_taken_flag_marks_every_redirect_including_a_branch_to_the_next_instruction():
+    _, trace = run(e("beq", 0, 0, 0, imm=4),       # taken, but the target is pc+4
+                   e("bne", 0, 0, 0, imm=8),       # not taken
+                   e("jal", 0, imm=4), e("jalr", 0, 0, imm=0x10), e("addi", 1, 0, imm=1))
+    assert [r.taken for r in trace[:4]] == [True, False, True, True]
+    assert not any(r.taken for r in trace[4:])
+    assert trace[0].pc_wdata == trace[0].pc + 4  # which is exactly why pc_wdata alone is not enough

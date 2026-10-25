@@ -13,7 +13,7 @@ Third in the series after [tiny-gpu](https://github.com/deaneeth/tiny-gpu) and [
 
 </div>
 
-> **Status: Phase 3 done (5-stage pipeline datapath).** Both RV32I cores retire instructions identically to the Python golden ISS: the single-cycle core on all 40 official `rv32ui-p-*` tests plus 5 programs, the 5-stage core on hazard-free programs. Next: forwarding and hazard stalls so the pipeline runs arbitrary code.
+> **Status: Phase 4 done (hazards).** Both RV32I cores retire instructions identically to the Python golden ISS on all 40 official `rv32ui-p-*` tests, 5 programs and hundreds of random programs. The 5-stage core has forwarding and load-use stalls (switchable at runtime) and matches an independent timing model cycle for cycle. Next: the WASM harness.
 > See [`docs/PLAN.md`](docs/PLAN.md) for the full roadmap.
 
 Every pipeline register, forwarding path and stall the UI will draw is a live `dbg_*` signal from the

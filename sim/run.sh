@@ -33,19 +33,24 @@ unit() {
     SIM_TAG=_nobypass EXTRA_COMPILE_ARGS="-GBYPASS=0" run test_regfile_nobypass regfile regfile.sv
     run test_csr_counters csr_counters csr_counters.sv
     run test_mmio         mmio         mmio.sv
+    run test_forward_unit forward_unit forward_unit.sv
+    run test_hazard_unit  hazard_unit  hazard_unit.sv
     run test_mem_sync     mem_sync     mem_sync.sv
     SIM_TAG=_oldread EXTRA_COMPILE_ARGS="-GREAD_NEW=0" MEM_READ_NEW=0 run test_mem_sync mem_sync mem_sync.sv
 }
 
 lockstep() {
     run test_core_lockstep tiny_cpu_top alu.sv imm_gen.sv branch_unit.sv lsu.sv decoder.sv regfile.sv \
-        csr_counters.sv mmio.sv mem_comb.sv mem_sync.sv core_single.sv core_pipe.sv tiny_cpu_top.sv
+        csr_counters.sv mmio.sv mem_comb.sv mem_sync.sv forward_unit.sv hazard_unit.sv core_single.sv core_pipe.sv tiny_cpu_top.sv
 }
 
 pipe() {
     TINYCPU_CORE=PIPE EXTRA_COMPILE_ARGS="-G'CORE=\"PIPE\"'" SIM_TAG=_pipe run test_pipe_lockstep tiny_cpu_top \
         alu.sv imm_gen.sv branch_unit.sv lsu.sv decoder.sv regfile.sv csr_counters.sv mmio.sv mem_comb.sv \
-        mem_sync.sv core_single.sv core_pipe.sv tiny_cpu_top.sv
+        mem_sync.sv forward_unit.sv hazard_unit.sv core_single.sv core_pipe.sv tiny_cpu_top.sv
+    TINYCPU_CORE=PIPE EXTRA_COMPILE_ARGS="-G'CORE=\"PIPE\"'" SIM_TAG=_pipe run test_pipe_hazards tiny_cpu_top \
+        alu.sv imm_gen.sv branch_unit.sv lsu.sv decoder.sv regfile.sv csr_counters.sv mmio.sv mem_comb.sv \
+        mem_sync.sv forward_unit.sv hazard_unit.sv core_single.sv core_pipe.sv tiny_cpu_top.sv
 }
 
 case "${1:-all}" in

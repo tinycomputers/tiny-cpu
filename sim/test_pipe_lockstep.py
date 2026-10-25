@@ -1,33 +1,66 @@
-"""5-stage core (CORE="PIPE") vs the golden ISS, Phase 3: no forwarding, no load-use stall.
+"""5-stage core (CORE="PIPE") vs the golden ISS in lockstep, with forwarding ON and OFF.
 
-Programs here are hazard-free by construction (golden/hazard_free.py). The riscv-tests images need
-forwarding and join in Phase 4. Run with TINYCPU_CORE=PIPE and -GCORE="PIPE" (sim/run.sh pipe).
+Everything runs in both modes (the cfg_forward_en pin is runtime): hazard-free programs, the official
+riscv-tests images (back-to-back dependencies, load-use, store->load), the example programs, and
+hazard-dense random programs. Cycle counts must equal the independent model golden/pipemodel.py.
+Run with TINYCPU_CORE=PIPE and -GCORE="PIPE" (sim/run.sh pipe). RANDOM_SEEDS=N scales the random sweep.
 """
+
+import os
 
 import cocotb
 from cocotb.triggers import ReadOnly, RisingEdge
 
 from golden.hazard_free import PROGRAMS, random_program
+from golden.hazard_random import random_hazard_program
 from golden.progbuild import Prog
-from lockstep_lib import CORE, IMEM_SIZE, e, lockstep, prog_bytes, reset_and_load
+from lockstep_lib import CORE, EXPECTED, IMEM_SIZE, e, images, lockstep, prog_bytes, reset_and_load, stem_path
+from pathlib import Path
+
+SEEDS = int(os.environ.get("RANDOM_SEEDS", "200"))
+MODES = [1, 0]  # cfg_forward_en
 
 assert CORE == "PIPE", "run through `bash sim/run.sh pipe` (sets TINYCPU_CORE=PIPE and -GCORE=\"PIPE\")"
 
 
-@cocotb.parametrize(name=sorted(PROGRAMS))
-async def test_hazard_free_program(dut, name):
+@cocotb.parametrize(name=sorted(PROGRAMS), forward=MODES)
+async def test_hazard_free_program(dut, name, forward):
     imem, dmem = PROGRAMS[name]().build()
-    iss, console, _ = await lockstep(dut, imem, dmem, expect_fault=False)
+    iss, console, _ = await lockstep(dut, imem, dmem, expect_fault=False, forward=forward)
     assert iss.passed
     if name == "console_and_csr":
         assert console == b"Hi, pipe!\n!"
 
 
-@cocotb.parametrize(seed=list(range(60)))
-async def test_random_hazard_free(dut, seed):
+@cocotb.parametrize(seed=list(range(60)), forward=MODES)
+async def test_random_hazard_free(dut, seed, forward):
     imem, dmem = random_program(seed).build()
-    iss, _, _ = await lockstep(dut, imem, dmem, expect_fault=False)
+    iss, _, _ = await lockstep(dut, imem, dmem, expect_fault=False, forward=forward)
     assert iss.passed
+
+
+@cocotb.parametrize(seed=list(range(SEEDS)), forward=MODES)
+async def test_random_hazard_dense(dut, seed, forward):
+    """Dense code over 5 registers: RAW at every distance, load-use, store->load, jumps, CSR reads."""
+    imem, dmem = random_hazard_program(seed).build()
+    iss, _, _ = await lockstep(dut, imem, dmem, expect_fault=False, forward=forward)
+    assert iss.passed
+
+
+# --------------------------------------------------------------------------- official tests + programs
+NAMES = images()
+if NAMES:
+
+    @cocotb.parametrize(name=NAMES, forward=MODES)
+    async def test_image(dut, name, forward):
+        """rv32ui-p-* and sim/programs/*.S, unmodified: only possible now that hazards are handled."""
+        stem = stem_path(name)
+        imem, dmem = Path(str(stem) + ".imem.bin").read_bytes(), Path(str(stem) + ".dmem.bin").read_bytes()
+        iss, console, _ = await lockstep(dut, imem, dmem, expect_fault=False, forward=forward)
+        assert iss.passed, f"{name}: failed test case #{(iss.tohost or 0) >> 1}"
+        if not name.startswith("rv32ui"):
+            assert console.decode() == EXPECTED[name]["console"]
+            assert iss.instret == EXPECTED[name]["instret"]
 
 
 # --------------------------------------------------------------------------- halt and faults
@@ -36,8 +69,9 @@ async def ecall_ebreak_halt(dut):
     for insn in (e("ecall"), e("ebreak")):
         p = Prog().addi(1, 0, 7)
         p.raw(insn).addi(1, 0, 9)
-        iss, _, _ = await lockstep(dut, p.build()[0], expect_fault=False)
-        assert iss.regs[1] == 7 and iss.tohost is None
+        for forward in MODES:
+            iss, _, _ = await lockstep(dut, p.build()[0], expect_fault=False, forward=forward)
+            assert iss.regs[1] == 7 and iss.tohost is None
 
 
 def fault_cases():
@@ -66,11 +100,12 @@ def fault_cases():
 
 @cocotb.test()
 async def faults_stop_the_core_without_retiring(dut):
-    for label, imem in fault_cases().items():
-        try:
-            await lockstep(dut, imem, expect_fault=True)
-        except AssertionError as exc:
-            raise AssertionError(f"[{label}] {exc}") from exc
+    for forward in MODES:
+        for label, imem in fault_cases().items():
+            try:
+                await lockstep(dut, imem, expect_fault=True, forward=forward)
+            except AssertionError as exc:
+                raise AssertionError(f"[{label}, forward={forward}] {exc}") from exc
 
 
 def setup_console(p):
@@ -96,11 +131,12 @@ async def younger_instructions_have_no_effect_after_a_fault(dut):
         faulting(p)
         p.sb(3, 1, 0).sb(3, 1, 0).sb(3, 1, 0).nop(3)
         p.exit()
-        try:
-            iss, console, _ = await lockstep(dut, p.build()[0], expect_fault=True)
-        except AssertionError as exc:
-            raise AssertionError(f"[{label}] {exc}") from exc
-        assert console == b"A", f"[{label}] younger stores leaked: {console!r}"
+        for forward in MODES:
+            try:
+                iss, console, _ = await lockstep(dut, p.build()[0], expect_fault=True, forward=forward)
+            except AssertionError as exc:
+                raise AssertionError(f"[{label}, forward={forward}] {exc}") from exc
+            assert console == b"A", f"[{label}, forward={forward}] younger stores leaked: {console!r}"
 
 
 @cocotb.test()
@@ -114,8 +150,9 @@ async def younger_instructions_have_no_effect_after_halt(dut):
         p.sb(2, 1, 0)
         halting(p)
         p.sb(3, 1, 0).sb(3, 1, 0).sb(3, 1, 0)
-        iss, console, _ = await lockstep(dut, p.build()[0], expect_fault=False)
-        assert console == b"A", f"[{label}] instructions after the halt leaked output: {console!r}"
+        for forward in MODES:
+            iss, console, _ = await lockstep(dut, p.build()[0], expect_fault=False, forward=forward)
+            assert console == b"A", f"[{label}, forward={forward}] instructions after the halt leaked: {console!r}"
 
 
 # --------------------------------------------------------------------------- pipeline behaviour

@@ -5,7 +5,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 PKG=rtl/tiny_cpu_pkg.sv
-LEAVES="alu imm_gen branch_unit lsu decoder regfile csr_counters mmio mem_comb mem_sync"
+LEAVES="alu imm_gen branch_unit lsu decoder regfile csr_counters mmio mem_comb mem_sync forward_unit hazard_unit"
 ALL="$PKG"; for m in $LEAVES core_single core_pipe tiny_cpu_top; do ALL+=" rtl/$m.sv"; done
 status=0
 

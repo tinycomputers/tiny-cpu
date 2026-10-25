@@ -15,6 +15,8 @@ Deliberate behaviours the RTL must match:
   * Misaligned loads/stores are NOT supported: the address is forced into alignment and the
     retire record carries misaligned=True. Misaligned jump/branch targets raise.
   * ecall / ebreak / a TOHOST write halt the core; the halting instruction still retires.
+  * `Retire.taken` is informational (not compared in lockstep): it lets the pipeline timing model
+    see a taken branch whose target happens to be pc+4, which pc_wdata alone cannot reveal.
   * Cycle-dependent values (CYCLE MMIO, rdcycle/rdtime) return the retired-instruction count
     here, which is NOT what a pipelined core returns. The lockstep harness masks the
     destination value of those instructions (see `Retire.cycle_dependent`).
@@ -93,6 +95,7 @@ class Retire:
     halt: bool = False
     halt_reason: str = ""  # "", "ecall", "ebreak", "tohost"; informational, not compared
     cycle_dependent: bool = False  # rd_wdata/mem_rdata depend on timing; lockstep must mask them
+    taken: bool = False  # a taken branch or any jump: the pipeline flushes (even when the target is pc+4)
 
     def asdict(self) -> dict:
         return asdict(self)
@@ -238,8 +241,10 @@ class Iss:
             rd_val = (pc + x.imm) & M32
         elif n == "jal":
             rd_val, nxt = nxt, (pc + x.imm) & M32
+            ret.taken = True
         elif n == "jalr":
             rd_val, nxt = nxt, ((a + x.imm) & M32) & ~1
+            ret.taken = True
         elif n in BRANCHES:
             taken = {
                 "beq": a == b,
@@ -251,6 +256,7 @@ class Iss:
             }[n]
             if taken:
                 nxt = (pc + x.imm) & M32
+                ret.taken = True
         elif n in LOADS:
             val, ret.mem_addr, ret.mem_rmask, ret.mem_rdata, ret.misaligned = self._load(
                 n, (a + x.imm) & M32, pc, x.insn

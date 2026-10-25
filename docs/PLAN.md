@@ -206,8 +206,8 @@ Four layers. Each phase below says which layers must be green.
    `cfg_forward_en` ∈ {0, 1}. CI runs 200 seeds; nightly runs 5000.
 
 **Directed hazard tests** (`sim/programs/hazards_*.S` + `test_hazards.py`) check **exact
-cycle counts**, not just results. Example: `lw x1,0(x2); add x3,x1,x1` must take exactly 1
-extra cycle with forwarding on and 3 with it off. These numbers are the ones the Hazard Lab
+cycle counts**, not just results. Example: `lw x1,0(x2); add x3,x1,x1` takes exactly 1
+extra cycle with forwarding on and 2 with it off (Phase 4 measured: the write-first regfile bypass saves the third). These numbers are the ones the Hazard Lab
 displays, so they get pinned.
 
 **Performance assertions:** fib(20) and bubble sort on 32 elements have pinned cycle counts per

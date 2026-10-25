@@ -1,16 +1,17 @@
 // 5-stage pipelined RV32I core: IF -> ID -> EX -> MEM -> WB.
 //
-// Phase 3 scope: the datapath, branch/jump flush, faults and halt. There is NO forwarding and NO
-// load-use stall yet (Phase 4), so correct results require producers to be >= 3 instructions
-// ahead of consumers (the register file's write-first bypass covers WB -> ID). The programs in
-// sim/golden/hazard_free.py are built that way.
+// Hazards (Phase 4): forward_unit forwards EX/MEM and MEM/WB results into EX; hazard_unit stalls
+// ID for the load-use hazard (loads and CSR reads have their result only in WB). The pin
+// cfg_forward_en = 0 disables forwarding and makes hazard_unit stall on every RAW dependency until
+// the producer reaches WB (the register file's write-first bypass delivers it). Exact cycle counts
+// are specified by the independent model in sim/golden/pipemodel.py.
 //
 // Timing (docs/ARCHITECTURE.md):
 //   IF   pc_q addresses IMEM (synchronous read). The instruction word is the BRAM output register
-//        and is decoded in ID the next cycle, alongside id_pc.
-//   ID   decode, register read (write-first bypass from WB), immediate.
-//   EX   ALU, branch decision, jump target. Taken branches/jumps (predict not-taken) flush IF/ID
-//        and ID/EX: a 2-cycle penalty. DMEM is ADDRESSED here (synchronous read).
+//        and is decoded in ID the next cycle, alongside id_pc. A stall holds pc_q and IMEM's output.
+//   ID   decode, register read (write-first bypass from WB), immediate. Stalls here.
+//   EX   operand forwarding, ALU, branch decision, jump target. Taken branches/jumps (predict
+//        not-taken) flush IF/ID and ID/EX: a 2-cycle penalty. DMEM is ADDRESSED here.
 //   MEM  load data is back from DMEM; LSU extracts/extends. Stores, console and TOHOST write here.
 //   WB   register write, CSR read, retire (RVFI), halt/fault decision.
 //
@@ -23,6 +24,7 @@ module core_pipe
 (
     input  logic                  clk,
     input  logic                  rst_n,
+    input  logic                  cfg_forward_en,  // 1: forward + load-use stall; 0: stall on every RAW
 
     output logic                  imem_re,
     output logic [IMEM_AW-1:0]    imem_raddr,
@@ -66,7 +68,11 @@ module core_pipe
     output logic [5*32-1:0]       dbg_stage_pc,
     output logic [5*32-1:0]       dbg_stage_insn,
     output logic                  dbg_flush_ifid,
-    output logic                  dbg_flush_idex
+    output logic                  dbg_flush_idex,
+    output logic                  dbg_stall,
+    output logic                  dbg_load_use,
+    output logic [1:0]            dbg_fwd_a,       // 0 none, 1 EX/MEM, 2 MEM/WB
+    output logic [1:0]            dbg_fwd_b
 );
 
     // ====================================================================== state
@@ -83,6 +89,7 @@ module core_pipe
     // ID/EX
     logic        ex_valid, ex_illegal, ex_a_pc, ex_b_imm, ex_reg_we, ex_mem_re, ex_mem_we;
     logic        ex_mem_unsigned, ex_is_branch, ex_is_jal, ex_is_jalr, ex_is_halt;
+    logic        ex_uses_rs1, ex_uses_rs2;
     logic [31:0] ex_pc, ex_insn, ex_rs1_data, ex_rs2_data, ex_imm;
     alu_op_t     ex_alu_op;
     wb_sel_t     ex_wb_sel;
@@ -104,7 +111,8 @@ module core_pipe
     // ====================================================================== IF
     logic        if_fault;
 
-    assign imem_re    = 1'b1;
+    logic        stall;                       // from hazard_unit (declared with ID)
+    assign imem_re    = !stall;                  // hold the instruction word in ID while stalled
     assign imem_raddr = pc_q[IMEM_AW+1:2];
     assign if_fault   = |pc_q[31:IMEM_AW+2];    // pc outside IMEM
 
@@ -116,9 +124,7 @@ module core_pipe
     mem_size_t   id_mem_size;
     logic        id_a_pc, id_b_imm, id_reg_we, id_mem_re, id_mem_we, id_mem_unsigned;
     logic        id_is_branch, id_is_jal, id_is_jalr, id_is_halt, id_illegal;
-    /* verilator lint_off UNUSEDSIGNAL */
-    logic        id_uses_rs1, id_uses_rs2;     // consumed by the hazard unit in Phase 4
-    /* verilator lint_on UNUSEDSIGNAL */
+    logic        id_uses_rs1, id_uses_rs2;
 
     assign id_insn = id_fetch_fault ? 32'b0 : imem_rdata;
 
@@ -132,10 +138,8 @@ module core_pipe
 
     imm_gen u_imm_gen (.insn(id_insn), .sel(id_imm_sel), .imm(id_imm));
 
-    // WB-stage write port (declared with WB below)
-    logic        wr_en;
+    // WB-stage write port (wr_en and wb_wdata are declared with the forwarding logic in EX)
     logic [4:0]  wb_rd;
-    logic [31:0] wb_wdata;
 
     regfile #(.BYPASS(1'b1)) u_regfile (
         .clk(clk), .rst_n(rst_n), .raddr1(id_insn[19:15]), .raddr2(id_insn[24:20]),
@@ -147,11 +151,49 @@ module core_pipe
     logic [31:0] ex_alu_a, ex_alu_b, ex_alu_y, ex_pc_plus4, ex_pc_target, ex_next_pc, ex_val;
     logic        ex_br_taken, ex_redirect_raw, ex_target_misaligned, ex_redirect, ex_fault;
 
-    assign ex_alu_a = ex_a_pc  ? ex_pc  : ex_rs1_data;
-    assign ex_alu_b = ex_b_imm ? ex_imm : ex_rs2_data;
+    // ---- forwarding (EX/MEM and MEM/WB -> EX) and hazard control (ID stalls)
+    logic [1:0]  fwd_a, fwd_b;
+    logic [31:0] ex_rs1_v, ex_rs2_v;           // operands after forwarding
+    logic        mm_wr, ex_wr, ex_late, load_use;
+    logic [31:0] wb_wdata;                     // value being written back (declared with WB)
+    logic        wr_en;
+
+    assign mm_wr   = mm_valid && mm_reg_we && (mm_insn[11:7] != 5'd0);
+    assign ex_wr   = ex_valid && ex_reg_we && (ex_insn[11:7] != 5'd0);
+    assign ex_late = ex_mem_re || (ex_wb_sel == WB_CSR);   // result only exists in WB
+
+    forward_unit u_fwd (
+        .forward_en(cfg_forward_en), .ex_valid(ex_valid), .ex_uses_rs1(ex_uses_rs1),
+        .ex_uses_rs2(ex_uses_rs2), .ex_rs1(ex_insn[19:15]), .ex_rs2(ex_insn[24:20]),
+        .mm_wr(mm_wr), .mm_rd(mm_insn[11:7]), .wb_wr(wr_en), .wb_rd(wb_rd),
+        .fwd_a(fwd_a), .fwd_b(fwd_b)
+    );
+
+    always_comb begin
+        case (fwd_a)
+            2'd1:    ex_rs1_v = mm_val;
+            2'd2:    ex_rs1_v = wb_wdata;
+            default: ex_rs1_v = ex_rs1_data;
+        endcase
+        case (fwd_b)
+            2'd1:    ex_rs2_v = mm_val;
+            2'd2:    ex_rs2_v = wb_wdata;
+            default: ex_rs2_v = ex_rs2_data;
+        endcase
+    end
+
+    hazard_unit u_hazard (
+        .forward_en(cfg_forward_en), .redirect(ex_redirect), .id_valid(id_valid),
+        .id_uses_rs1(id_uses_rs1), .id_uses_rs2(id_uses_rs2), .id_rs1(id_insn[19:15]),
+        .id_rs2(id_insn[24:20]), .ex_wr(ex_wr), .ex_late(ex_late), .ex_rd(ex_insn[11:7]),
+        .mm_wr(mm_wr), .mm_rd(mm_insn[11:7]), .stall(stall), .load_use(load_use)
+    );
+
+    assign ex_alu_a = ex_a_pc  ? ex_pc  : ex_rs1_v;
+    assign ex_alu_b = ex_b_imm ? ex_imm : ex_rs2_v;
 
     alu u_alu (.a(ex_alu_a), .b(ex_alu_b), .op(ex_alu_op), .y(ex_alu_y));
-    branch_unit u_branch (.a(ex_rs1_data), .b(ex_rs2_data), .funct3(ex_insn[14:12]), .taken(ex_br_taken));
+    branch_unit u_branch (.a(ex_rs1_v), .b(ex_rs2_v), .funct3(ex_insn[14:12]), .taken(ex_br_taken));
 
     assign ex_pc_plus4  = ex_pc + 32'd4;
     assign ex_pc_target = ex_pc + ex_imm;
@@ -233,7 +275,7 @@ module core_pipe
             ex_alu_op <= ALU_ADD;  ex_a_pc <= 1'b0;  ex_b_imm <= 1'b0;  ex_reg_we <= 1'b0;
             ex_wb_sel <= WB_ALU;  ex_mem_re <= 1'b0;  ex_mem_we <= 1'b0;  ex_mem_size <= SZ_WORD;
             ex_mem_unsigned <= 1'b0;  ex_is_branch <= 1'b0;  ex_is_jal <= 1'b0;
-            ex_is_jalr <= 1'b0;  ex_is_halt <= 1'b0;
+            ex_is_jalr <= 1'b0;  ex_is_halt <= 1'b0;  ex_uses_rs1 <= 1'b0;  ex_uses_rs2 <= 1'b0;
 
             mm_valid <= 1'b0;  mm_fault <= 1'b0;  mm_reg_we <= 1'b0;  mm_mem_re <= 1'b0;
             mm_mem_we <= 1'b0;  mm_mem_unsigned <= 1'b0;  mm_is_halt <= 1'b0;
@@ -245,15 +287,21 @@ module core_pipe
             wb_val <= 32'b0;  wb_next_pc <= 32'b0;  wb_mem_addr <= 32'b0;  wb_mem_rdata <= 32'b0;
             wb_mem_wdata <= 32'b0;  wb_mem_rmask <= 4'b0;  wb_mem_wmask <= 4'b0;  wb_sel <= WB_ALU;
         end else begin
-            // ---- IF: always fetch; a taken redirect from EX replaces the pc and squashes the
-            //      instruction being fetched
-            pc_q           <= ex_redirect ? ex_next_pc : pc_q + 32'd4;
-            id_valid       <= !ex_redirect;
-            id_pc          <= pc_q;
-            id_fetch_fault <= if_fault;
+            // ---- IF/ID: fetch every cycle unless stalled (hold pc and the IF/ID register). A taken
+            //      redirect from EX replaces the pc and squashes the instruction being fetched; it
+            //      always wins over a stall (hazard_unit never stalls during a redirect).
+            if (ex_redirect) begin
+                pc_q     <= ex_next_pc;
+                id_valid <= 1'b0;
+            end else if (!stall) begin
+                pc_q           <= pc_q + 32'd4;
+                id_valid       <= 1'b1;
+                id_pc          <= pc_q;
+                id_fetch_fault <= if_fault;
+            end
 
-            // ---- ID -> EX (squashed by a redirect)
-            ex_valid        <= id_valid && !ex_redirect;
+            // ---- ID -> EX: a redirect squashes the instruction in ID; a stall issues a bubble
+            ex_valid        <= id_valid && !ex_redirect && !stall;
             ex_illegal      <= id_illegal || id_fetch_fault;
             ex_pc           <= id_pc;
             ex_insn         <= id_insn;
@@ -273,6 +321,8 @@ module core_pipe
             ex_is_jal       <= id_is_jal;
             ex_is_jalr      <= id_is_jalr;
             ex_is_halt      <= id_is_halt;
+            ex_uses_rs1     <= id_uses_rs1;
+            ex_uses_rs2     <= id_uses_rs2;
 
             // ---- EX -> MEM
             mm_valid        <= ex_valid;
@@ -280,7 +330,7 @@ module core_pipe
             mm_pc           <= ex_pc;
             mm_insn         <= ex_insn;
             mm_val          <= ex_val;
-            mm_rs2_data     <= ex_rs2_data;
+            mm_rs2_data     <= ex_rs2_v;
             mm_next_pc      <= ex_next_pc;
             mm_reg_we       <= ex_reg_we;
             mm_wb_sel       <= ex_wb_sel;
@@ -364,5 +414,9 @@ module core_pipe
     assign dbg_stage_insn  = {wb_insn, mm_insn, ex_insn, id_insn, 32'b0};
     assign dbg_flush_ifid  = ex_redirect;
     assign dbg_flush_idex  = ex_redirect;
+    assign dbg_stall       = stall;
+    assign dbg_load_use    = load_use;
+    assign dbg_fwd_a       = fwd_a;
+    assign dbg_fwd_b       = fwd_b;
 
 endmodule

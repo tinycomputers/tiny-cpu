@@ -75,12 +75,35 @@ cycle  IF       ID       EX       MEM      WB
    22  0x0058   0x0054     --       --     0x0048
 ```
 
-Phase 3 scope: datapath, flush, faults and halt. **No forwarding and no load-use stall yet** - producers must be
->= 3 instructions ahead of consumers (the register file's write-first bypass covers WB->ID). Phase 4 adds the
-hazard/forward units, after which the riscv-tests images run on this core too.
-
-Deviation from the original plan: the taken-branch flush is in Phase 3, not 4. Without it the NOPs after a taken
+Deviation from the original plan: the taken-branch flush landed in Phase 3, not 4. Without it the NOPs after a taken
 branch retire on the wrong path and the lockstep stream can never match the ISS.
+
+### Hazards (Phase 4)
+
+| Producer ahead of the consumer | forwarding **on** | forwarding **off** (`cfg_forward_en = 0`) |
+|---|---|---|
+| ALU / link, distance 1 | forwarded EX/MEM -> EX, **0 stalls** | 2 stalls |
+| ALU / link, distance 2 | forwarded MEM/WB -> EX, **0 stalls** | 1 stall |
+| load or CSR read, distance 1 | **1 stall** (load-use), then MEM/WB | 2 stalls |
+| load or CSR read, distance 2 | **0 stalls** (MEM/WB) | 1 stall |
+| any producer, distance >= 3 | register file write-first bypass, 0 | 0 |
+| taken branch / jump | flush IF/ID + ID/EX: **2 cycles** (predict not-taken); a flush hides any stall on the squashed instruction | same |
+
+* `forward_unit` picks `dbg_fwd_a/b` per operand (0 none, 1 EX/MEM, 2 MEM/WB; the nearer producer wins; never x0).
+* `hazard_unit` raises `dbg_stall` (hold `pc_q`, the IF/ID register and IMEM's output register via `imem_re = 0`, and put a
+  bubble in ID/EX) and `dbg_load_use`. A redirect from EX always wins over a stall.
+* **Loads and CSR reads are "late" producers.** Load data exists only after MEM, and a CSR is read in WB, so neither can be
+  forwarded from EX/MEM; their consumers wait one cycle and take the value from MEM/WB.
+* **With forwarding off the cost is 2, not 3**, because the register file's write-first bypass delivers a value written
+  in WB to a reader in ID in the same cycle. (The original plan's "3" assumed no bypass.)
+* **Exact timing is specified outside the RTL** by `sim/golden/pipemodel.py`: with `T(i)` the cycle instruction `i` is in
+  EX, `T(i) >= T(i-1)+1`, `>= T(branch)+3` after a taken branch, `>= T(p)+2` for a late producer / `+1` otherwise with
+  forwarding, `>= T(p)+3` without. The RTL must match it to the cycle on every program (`cycles = T(last) + 2`).
+* Pinned numbers: `sim/golden/hazard_cases.py` (paper-derived, checked against the model *and* the RTL, including the debug
+  flags) and `sim/perf_baseline.json` (cycles per program, per core and mode; `python -m golden.perf`).
+
+What the baseline shows: on loop-heavy code CPI with forwarding is 1.4-1.65, and almost all of the excess is the 2-cycle
+penalty on every taken loop branch (predict-not-taken), not data hazards - the case for a branch predictor (PLAN stretch #2).
 
 ### Timing contract
 * **Synchronous memories.** `pc_q` is the IMEM address; the BRAM output register *is* the instruction in ID, with `id_pc`
@@ -115,7 +138,10 @@ runs dense code with stores directly behind the faulting/halting instruction and
 | Lockstep | `sim/test_core_lockstep.py` | 45 images (40 riscv-tests + 5 programs) retire-for-retire against the ISS; 13 fault cases; halt/frozen-core checks; CPI = 1 |
 | Lint | `scripts/lint.sh` | `-Wall` clean for every module standalone and the whole design |
 
-| Pipeline lockstep | `sim/test_pipe_lockstep.py` | 9 hazard-free programs + 60 random ones retire-for-retire vs the ISS; 13 fault cases; younger-instruction gating after fault/halt; exact cycle formula; 5-deep overlap; flush count |
+| Pipeline lockstep | `sim/test_pipe_lockstep.py` | In **both forwarding modes**: the 40 riscv-tests + 5 programs, 9 hazard-free programs, 60 hazard-free and 200 hazard-dense random programs (`RANDOM_SEEDS=N` scales it; nightly runs 5000) retire-for-retire vs the ISS; 13 fault cases; younger-instruction gating after fault/halt; cycle count == the independent model; 5-deep overlap |
+| Hazard patterns | `sim/test_pipe_hazards.py` | 17 paper-derived patterns x 2 modes: pinned extra cycles, `dbg_stall` count == model, one `dbg_load_use` pulse where expected, forwarding source observed |
+| Hazard units | `sim/test_forward_unit.py`, `test_hazard_unit.py` | Exhaustive over (control bits x small register space): 5184 and 20736 combinations |
+| Timing model | `sim/golden/test_pipemodel.py` | Paper-derived cases + random-program sanity, no RTL |
 | Program builder | `sim/golden/progbuild.py`, `hazard_free.py` | `Prog(pad=N)` mini-assembler; `raw_hazards()` proves a program hazard-free from its dynamic ISS trace (no toolchain needed) |
 
 Run: `bash scripts/lint.sh && bash sim/run.sh all` (after `make -C sw all`). `all` = unit + lockstep (single-cycle) + pipe.

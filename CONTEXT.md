@@ -20,7 +20,10 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 - Phase 3 (5-stage pipeline, no forwarding/stall): DONE. `mem_sync.sv`, `core_pipe.sv`, `CORE="PIPE"` in the top, uniform
   per-stage `dbg_*` ports on both cores, `golden/progbuild.py` + `hazard_free.py`. 74 pipe lockstep tests pass; 7 mutants killed.
   Taken-branch flush landed here (not Phase 4) because lockstep needs it. See docs/ARCHITECTURE.md.
-- Next: Phase 4 (`forward_unit`, `hazard_unit`: load-use stall + `cfg_forward_en`, pinned hazard cycle counts, riscv-tests on PIPE).
+- Phase 4 (hazards): DONE. `forward_unit`, `hazard_unit`, `cfg_forward_en` pin, dbg stall/load-use/fwd flags. The pipeline runs the
+  40 riscv-tests + all programs + 260 random programs in lockstep in BOTH modes, cycle-exact against `golden/pipemodel.py`.
+  11 mutants killed. `sim/perf_baseline.json` pins cycles per core/mode.
+- Next: Phase 5 (WASM harness: dual-model build, `TinyCpuSim` API, `docs/STATE_SCHEMA.md`, Node test).
 
 ## Interfaces Phase 2+ must honour (defined by the ISS, `sim/golden/iss.py`)
 - Retire record fields, lane/mask conventions, forced alignment, `cycle_dependent` masking: see the module docstring and PLAN 2.4.
@@ -42,7 +45,7 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 | Memory | Harvard, synchronous read. IMEM `0x0000_0000` 4 KiB, DMEM `0x0001_0000` 4 KiB. |
 | MMIO | `CONSOLE 0x0002_0000`, `TOHOST 0x0002_0004` (1 = PASS), `CYCLE 0x0002_0008` |
 | Branches | Resolved in EX, predict not-taken, 2-cycle flush penalty |
-| Forwarding | EX/MEM->EX and MEM/WB->EX for rs1 and rs2; runtime pin `cfg_forward_en` |
+| Forwarding | EX/MEM->EX and MEM/WB->EX for rs1 and rs2; runtime pin `cfg_forward_en` (off: stall on every RAW until WB; costs 2/1/0 for distance 1/2/3, not the 3 first planned) |
 | Hazards | Only stall: 1-cycle load-use. Regfile has write-first bypass. `x0` hard-wired to 0 |
 | Verification | Unit (cocotb) + golden ISS lockstep + riscv-tests rv32ui-p-* + random programs |
 | Retire trace | RVFI-lite record on every core |
@@ -75,3 +78,10 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 - Cycle-dependent registers must be masked in the final register compare too, not only per retire.
 - Dynamic hazard distance != static: instructions at jump targets skip the jump's padding (use `raw_hazards()` on the ISS trace).
 - Hazard-free means >= 3 instructions between producer and consumer (2 NOPs) for this pipeline; `Prog.li/exit/putc` add gap NOPs at pad<2.
+
+## Gotchas found in Phase 4
+- A taken branch to pc+4 is invisible in `pc_wdata`; `Retire.taken` (ISS) carries it so the timing model stays exact.
+- Hand-derived expectations must separate setup from the hazard under test (`lui; lw` is itself a distance-1 RAW).
+- A flush hides the stall of the squashed instruction (`jal rd; use rd` costs 2 either way).
+- `RANDOM_SEEDS=N bash sim/run.sh pipe` scales the random sweep (default 200 per mode); mutation runs use 40.
+- The root filesystem filled during a long mutation sweep (home caches, not this repo): keep `/tmp` and logs small.

@@ -14,13 +14,11 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, ReadOnly, RisingEdge, Timer
 
-from golden.decode import BRANCHES, decode
+from golden.pipemodel import pipe_cycles
 from golden.decode import encode as e  # noqa: F401  (re-exported for tests)
 from golden.iss import IMEM_SIZE, DMEM_SIZE, Iss, IssError
 
 CORE = os.environ.get("TINYCPU_CORE", "SINGLE")
-PIPE_FILL = 4  # cycles from reset release to the first retire is 5; N instructions take N + 4
-FLUSH_PENALTY = 2  # a taken branch/jump squashes IF and ID
 
 ROOT = Path(__file__).resolve().parent.parent
 BUILD = ROOT / "sw" / "build"
@@ -68,10 +66,11 @@ def ensure_clock(dut):
         _clock = cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
 
 
-async def reset_and_load(dut, imem: bytes, dmem: bytes):
+async def reset_and_load(dut, imem: bytes, dmem: bytes, forward: int = 1):
     ensure_clock(dut)
     await Timer(1, "ns")  # a previous lockstep() ends in the ReadOnly phase, where writes are illegal
     dut.rst_n.value, dut.load_en.value = 0, 0
+    dut.cfg_forward_en.value = forward
     dut.load_sel.value, dut.load_addr.value, dut.load_data.value = 0, 0, 0
     await FallingEdge(dut.clk)
     for sel, data, count in ((0, imem, IMEM_SIZE // 4), (1, dmem, DMEM_SIZE // 4)):
@@ -83,22 +82,12 @@ async def reset_and_load(dut, imem: bytes, dmem: bytes):
     dut.rst_n.value = 1  # first rising edge after this executes the instruction at pc 0
 
 
-def redirects(history) -> int:
-    """Taken branches and jumps in a retire history (each flushes the pipeline once)."""
-    n = 0
-    for r in history:
-        x = decode(r.insn)
-        if x.name in ("jal", "jalr") or (x.name in BRANCHES and r.pc_wdata != (r.pc + 4) & 0xFFFFFFFF):
-            n += 1
-    return n
-
-
-def expected_cycles(instret: int, history) -> int:
-    """Cycles from reset release until the halting retire is visible. SINGLE: one per instruction.
-    PIPE (Phase 3, no stalls): pipeline fill + one per instruction + a flush penalty per redirect."""
+def expected_cycles(instret: int, history, forward: bool = True) -> int:
+    """Cycles from reset release until the halting retire is visible.
+    SINGLE: one per instruction. PIPE: the independent timing model (golden/pipemodel.py)."""
     if CORE == "SINGLE":
         return instret
-    return instret + PIPE_FILL + FLUSH_PENALTY * redirects(history)
+    return pipe_cycles(history, forward)
 
 
 def explain(history, msg):
@@ -106,9 +95,9 @@ def explain(history, msg):
     return f"{msg}\n  last ISS retires:\n{tail}"
 
 
-async def lockstep(dut, imem: bytes, dmem: bytes = b"", expect_fault: bool | None = None):
+async def lockstep(dut, imem: bytes, dmem: bytes = b"", expect_fault: bool | None = None, forward: int = 1):
     """Run RTL and ISS together to halt (or fault). Returns (iss, rtl_console, cycles)."""
-    await reset_and_load(dut, imem, dmem)
+    await reset_and_load(dut, imem, dmem, forward)
     iss = Iss(imem, dmem)
     history, console, cycles, faulted = [], bytearray(), 0, False
 
@@ -179,8 +168,9 @@ async def lockstep(dut, imem: bytes, dmem: bytes = b"", expect_fault: bool | Non
         assert int(dut.dbg_pc.value) == iss.pc
         assert iss.instret == int(dut.dbg_instret.value), (
             f"instret: ISS={iss.instret} RTL={int(dut.dbg_instret.value)}")
-        want = expected_cycles(iss.instret, history)
-        assert cycles == want, f"{CORE} cycle count: RTL={cycles} expected={want} (instret={iss.instret})"
+        want = expected_cycles(iss.instret, history, bool(forward))
+        assert cycles == want, (
+            f"{CORE} forward={forward} cycle count: RTL={cycles} model={want} (instret={iss.instret})")
     return iss, bytes(console), cycles
 
 

@@ -39,7 +39,9 @@ Set `REQUIRE_RISCV_TESTS=1` to make a missing `sw/build` fail instead of skip (C
 bash scripts/lint.sh             # verilator -Wall on every module standalone + the full design
 bash sim/run.sh unit             # cocotb unit suites (one SIM_BUILD per suite)
 bash sim/run.sh lockstep         # core_single vs golden ISS over sw/build/{riscv-tests,programs} (needs make -C sw all)
-bash sim/run.sh pipe             # core_pipe vs golden ISS over the hazard-free programs (no toolchain needed)
+bash sim/run.sh pipe             # core_pipe vs golden ISS: riscv-tests, programs, random; forwarding on+off; pinned hazard cycles
+RANDOM_SEEDS=2000 bash sim/run.sh pipe   # bigger random sweep (default 200 per mode)
+cd sim && python -m golden.perf  # CPI table; --update rewrites sim/perf_baseline.json (deliberately!)
 bash sim/run.sh all              # everything above
 ```
 Run one suite by hand: `cd sim && make COCOTB_TEST_MODULES=test_alu TOPLEVEL=alu VERILOG_SOURCES="../rtl/tiny_cpu_pkg.sv ../rtl/alu.sv" WAVES=0 SIM_BUILD=sim_build/test_alu`
