@@ -164,3 +164,20 @@ pipeline model. Four mutations were caught: a forwarding pin ignored, a console 
 the shadow memory's byte order reversed.
 
 Size: 194 KB raw, 77 KB gzipped (budget 400 KB), enforced by `build.sh`.
+
+
+## Web app (Phase 6)
+
+`/app` is one React island (`CpuApp`) over `useTinyCpu`:
+
+* **Assembler** (`web/src/lib/assembler.ts`): two passes; labels, numeric local labels, `.equ`, the data directives and the
+  GNU pseudo-instructions. Output is byte-identical to GNU as/ld for every source in `gnu-asm.json` (the presets, the five macro
+  programs preprocessed, and 16 snippets covering every mnemonic and directive).
+* **Run**: one `TinyCpuSim` per run. The full `CycleState[]` is kept (capped at 20,000 cycles), so stepping, scrubbing and
+  playback only move an index; nothing re-runs. `run-model.ts` derives statistics, console output and data memory at any cycle
+  from the states themselves (memory by replaying retire records, the same rule as the harness's shadow copy).
+* **Views**: source editor with the executing line highlighted and errors marked; a pipeline view (five stage cards, hazard
+  badges, and a stage timeline over the last ten cycles); registers and data memory with changed values highlighted; console;
+  statistics. Single-cycle runs show one instruction per cycle; hazard badges appear only for the pipeline.
+* **Checks**: `web/src/lib/__tests__/` (Vitest, 53 tests, including every preset on both cores with forwarding on and off, read
+  against the expected console output) and `web/e2e/` (Playwright, 4 tests against the production build).

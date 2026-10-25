@@ -59,6 +59,9 @@ Both `web/public/tiny_cpu.{mjs,wasm}` are committed: the web app and Vercel have
 ### Frontend (from `web/`)
 ```bash
 pnpm dev | build | lint | typecheck | format
+pnpm test           # Vitest: assembler vs GNU bytes, disassembler round trip, presets on the WASM module
+pnpm test:e2e       # Playwright smoke tests against the production build (run `pnpm build` first)
+cd ../sim && python -m golden.gen_asm_fixtures   # regenerate web/src/lib/__tests__/gnu-asm.json after changing presets/snippets
 ```
 
 ## Commits and PRs: no AI attribution (hard rule)

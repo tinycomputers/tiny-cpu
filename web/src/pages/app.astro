@@ -1,0 +1,14 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import CpuApp from "@/components/CpuApp";
+---
+
+<Layout title="TinyCPU - run RV32I on the simulated core">
+  <main class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6">
+    <header class="flex flex-wrap items-baseline justify-between gap-2">
+      <h1 class="text-2xl font-bold">TinyCPU</h1>
+      <a class="text-sm underline" style="color: var(--accent)" href="/">About</a>
+    </header>
+    <CpuApp client:only="react" />
+  </main>
+</Layout>

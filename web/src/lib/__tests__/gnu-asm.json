@@ -1,0 +1,132 @@
+{
+ "preset/fib": {
+  "data": "",
+  "source": "# Fibonacci: computes fib(20) = 6765 and prints it in decimal.\n# Decimal conversion uses repeated subtraction, because the core has no multiply or divide.\n\n        .text\n_start:\n        lui     sp, 0x11        # stack pointer: top of the 4 KiB data memory\n        li      s0, 20          # n\n        li      a1, 0           # fib(i)\n        li      a2, 1           # fib(i+1)\n1:      beqz    s0, 2f\n        add     a3, a1, a2\n        mv      a1, a2\n        mv      a2, a3\n        addi    s0, s0, -1\n        j       1b\n2:      mv      a0, a1\n        call    print_uint\n        li      a0, 10          # newline\n        call    putc\n        j       finish\n\n# print_uint: a0 = unsigned value, printed in decimal (no newline).\nprint_uint:\n        addi    sp, sp, -16\n        sw      ra, 12(sp)\n        li      t3, 0           # digits pushed so far\n        li      t4, 10\n1:      mv      t0, a0          # t0 = value still to divide\n        li      t1, 0           # t1 = quotient\n2:      bltu    t0, t4, 3f\n        addi    t0, t0, -10\n        addi    t1, t1, 1\n        j       2b\n3:      addi    t0, t0, 48      # remainder -> ASCII digit\n        add     t2, sp, t3\n        sb      t0, 0(t2)\n        addi    t3, t3, 1\n        mv      a0, t1\n        bnez    a0, 1b\n4:      addi    t3, t3, -1      # digits come out last-first\n        add     t2, sp, t3\n        lbu     a0, 0(t2)\n        call    putc\n        bnez    t3, 4b\n        lw      ra, 12(sp)\n        addi    sp, sp, 16\n        ret\n\n# putc: a0 = byte to print.\nputc:   lui     t1, 0x20\n        sb      a0, 0(t1)\n        ret\n\n# finish: report PASS to the harness and halt.\nfinish: li      t0, 1\n        lui     t1, 0x20\n        sw      t0, 4(t1)\nhalt:   j       halt\n",
+  "text": "37110100130440019305000013061000630c0400b386c50093050600138606001304f4ff6ff0dffe1385050097000000e78080011305a00097000000e78000076f004007130101ff23261100130e0000930ea000930205001303000063e8d201938262ff130313006ff05fff93820203b303c10123805300130e1e0013050300e31a05fc130efeffb303c10103c5030097000000e7808001e3160efe8320c1001301010167800000370302002300a300678000009302100037030200232253006f000000"
+ },
+ "preset/hello": {
+  "data": "48656c6c6f2c2054696e79435055210a00",
+  "source": "# Hello, TinyCPU: prints a greeting through the CONSOLE register, then reports PASS.\n# CONSOLE is at 0x0002_0000 (a store prints its low byte); TOHOST at 0x0002_0004 (1 = PASS).\n\n        .text\n_start:\n        la      a0, msg         # a0 = address of the string\n        call    print_str\n        li      t0, 1\n        lui     t1, 0x20        # t1 = 0x0002_0000\n        sw      t0, 4(t1)       # TOHOST = 1: halt, PASS\nhalt:   j       halt\n\n# print_str: a0 = address of a NUL-terminated string.\nprint_str:\n        lui     t1, 0x20        # CONSOLE\n1:      lbu     t0, 0(a0)\n        beqz    t0, 2f\n        sb      t0, 0(t1)\n        addi    a0, a0, 1\n        j       1b\n2:      ret\n\n        .data\nmsg:    .asciz  \"Hello, TinyCPU!\\n\"\n",
+  "text": "170501001305050097000000e78080019302100037030200232253006f00000037030200834205006388020023005300130515006ff01fff67800000"
+ },
+ "preset/memcpy": {
+  "data": "01000000efbeadde00000080ffffff7fffffffff785634120df0ad0bbebafeca0f0f0f0ff0f0f0f0ff00ff0000ff00ffdf9b5713e0ac6824aa55aa5555aa55aa000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004f4b0a004641494c0a00",
+  "source": "# Copies 16 words with a byte-by-byte memcpy, checks every word, and prints OK or FAIL.\n\n        .text\n_start:\n        lui     sp, 0x11\n        la      a0, dst\n        la      a1, src\n        li      a2, 64          # bytes\n        call    memcpy\n        la      t0, dst\n        la      t1, src\n        li      t2, 16          # words left to compare\n1:      beqz    t2, ok\n        lw      t3, 0(t0)\n        lw      t4, 0(t1)\n        bne     t3, t4, bad\n        addi    t0, t0, 4\n        addi    t1, t1, 4\n        addi    t2, t2, -1\n        j       1b\nok:     la      a0, s_ok\n        call    print_str\n        j       finish\nbad:    la      a0, s_bad\n        call    print_str\n        li      t0, 3           # exit code 3 = mismatch\n        lui     t1, 0x20\n        sw      t0, 4(t1)\nhalt:   j       halt\n\n# memcpy: a0 = dst, a1 = src, a2 = byte count.\nmemcpy: beqz    a2, 2f\n1:      lbu     t0, 0(a1)\n        sb      t0, 0(a0)\n        addi    a0, a0, 1\n        addi    a1, a1, 1\n        addi    a2, a2, -1\n        bnez    a2, 1b\n2:      ret\n\n# print_str: a0 = address of a NUL-terminated string.\nprint_str:\n        lui     t1, 0x20\n1:      lbu     t0, 0(a0)\n        beqz    t0, 2f\n        sb      t0, 0(t1)\n        addi    a0, a0, 1\n        j       1b\n2:      ret\n\n# finish: report PASS to the harness and halt.\nfinish: li      t0, 1\n        lui     t1, 0x20\n        sw      t0, 4(t1)\nhalt2:  j       halt2\n\n        .data\n        .align  2\nsrc:    .word   0x00000001, 0xdeadbeef, 0x80000000, 0x7fffffff\n        .word   0xffffffff, 0x12345678, 0x0badf00d, 0xcafebabe\n        .word   0x0f0f0f0f, 0xf0f0f0f0, 0x00ff00ff, 0xff00ff00\n        .word   0x13579bdf, 0x2468ace0, 0x55aa55aa, 0xaa55aa55\ndst:    .space  64\ns_ok:   .asciz  \"OK\\n\"\ns_bad:  .asciz  \"FAIL\\n\"\n",
+  "text": "37110100170501001305c50397050100938545ff1306000497000000e7800007970201009382020217030100130383fd930300016380030203ae0200832e03006314de0393824200130343009383f3ff6ff05ffe170501001305c50297000000e780c0046f000006170501001305c50197000000e78080039302300037030200232253006f000000630e060083c205002300550013051500938515001306f6ffe31606fe6780000037030200834205006388020023005300130515006ff01fff678000009302100037030200232253006f000000"
+ },
+ "preset/primes": {
+  "data": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "source": "# Sieve of Eratosthenes up to 60: prints every prime.\n# p*p is computed by repeated addition, because the core has no multiply.\n\n        .text\n_start:\n        lui     sp, 0x11\n        la      s0, sieve       # s0 = sieve base (one byte per number)\n        li      s1, 60          # s1 = limit\n        li      t0, 0\n1:      bgt     t0, s1, 2f      # clear sieve[0..limit]\n        add     t1, s0, t0\n        sb      zero, 0(t1)\n        addi    t0, t0, 1\n        j       1b\n2:      li      s2, 2           # s2 = p\n3:      mv      t4, s2          # t3 = p*p by adding p, p times\n        li      t3, 0\n4:      beqz    t4, 5f\n        add     t3, t3, s2\n        addi    t4, t4, -1\n        j       4b\n5:      bgt     t3, s1, 8f      # p*p past the limit: sieving done\n        add     t1, s0, s2\n        lbu     t5, 0(t1)\n        bnez    t5, 7f          # p is composite: skip it\n        mv      t0, t3          # mark p*p, p*p+p, ...\n6:      bgt     t0, s1, 7f\n        add     t1, s0, t0\n        li      t5, 1\n        sb      t5, 0(t1)\n        add     t0, t0, s2\n        j       6b\n7:      addi    s2, s2, 1\n        j       3b\n8:      li      s2, 2           # print the primes\n9:      bgt     s2, s1, 11f\n        add     t1, s0, s2\n        lbu     t5, 0(t1)\n        bnez    t5, 10f\n        mv      a0, s2\n        call    print_uint\n        li      a0, 32\n        call    putc\n10:     addi    s2, s2, 1\n        j       9b\n11:     li      a0, 10\n        call    putc\n        j       finish\n\n# print_uint: a0 = unsigned value, printed in decimal (no newline).\nprint_uint:\n        addi    sp, sp, -16\n        sw      ra, 12(sp)\n        li      t3, 0\n        li      t4, 10\n1:      mv      t0, a0\n        li      t1, 0\n2:      bltu    t0, t4, 3f\n        addi    t0, t0, -10\n        addi    t1, t1, 1\n        j       2b\n3:      addi    t0, t0, 48\n        add     t2, sp, t3\n        sb      t0, 0(t2)\n        addi    t3, t3, 1\n        mv      a0, t1\n        bnez    a0, 1b\n4:      addi    t3, t3, -1\n        add     t2, sp, t3\n        lbu     a0, 0(t2)\n        call    putc\n        bnez    t3, 4b\n        lw      ra, 12(sp)\n        addi    sp, sp, 16\n        ret\n\n# putc: a0 = byte to print.\nputc:   lui     t1, 0x20\n        sb      a0, 0(t1)\n        ret\n\n# finish: report PASS to the harness and halt.\nfinish: li      t0, 1\n        lui     t1, 0x20\n        sw      t0, 4(t1)\nhalt:   j       halt\n\n        .data\nsieve:  .space  61\n",
+  "text": "37110100170401001304c4ff9304c0039302000063ca54003303540023000300938212006ff01fff13092000930e0900130e000063880e00330e2e01938efeff6ff05fff63cac40333032401034f030063100f0293020e0063cc540033035400130f10002300e301b38222016ff0dffe130919006ff09ffb1309200063c8240333032401034f0300631e0f001305090097000000e780c0021305000297000000e7804008130919006ff05ffd1305a00097000000e78000076f004007130101ff23261100130e0000930ea000930205001303000063e8d201938262ff130313006ff05fff93820203b303c10123805300130e1e0013050300e31a05fc130efeffb303c10103c5030097000000e7808001e3160efe8320c1001301010167800000370302002300a300678000009302100037030200232253006f000000"
+ },
+ "preset/sort": {
+  "data": "2a0000000700000063000000030000001200000040000000010000001b000000550000000b0000003200000005000000",
+  "source": "# Bubble sort of 12 words in data memory, then print them separated by spaces.\n\n        .text\n_start:\n        lui     sp, 0x11\n        la      s0, array       # s0 = base of the array\n        li      s1, 12          # s1 = element count\n        addi    s2, s1, -1      # s2 = passes left\n1:      blez    s2, 5f\n        li      t0, 0           # i\n        mv      t1, s0          # t1 = &array[i]\n2:      bge     t0, s2, 4f\n        lw      a1, 0(t1)\n        lw      a2, 4(t1)\n        ble     a1, a2, 3f      # already in order\n        sw      a2, 0(t1)\n        sw      a1, 4(t1)\n3:      addi    t0, t0, 1\n        addi    t1, t1, 4\n        j       2b\n4:      addi    s2, s2, -1\n        j       1b\n5:      li      s2, 0           # print loop\n6:      bge     s2, s1, 8f\n        slli    t0, s2, 2\n        add     t0, t0, s0\n        lw      a0, 0(t0)\n        call    print_uint\n        li      a0, 32          # space\n        call    putc\n        addi    s2, s2, 1\n        j       6b\n8:      li      a0, 10          # newline\n        call    putc\n        j       finish\n\n# print_uint: a0 = unsigned value, printed in decimal (no newline).\nprint_uint:\n        addi    sp, sp, -16\n        sw      ra, 12(sp)\n        li      t3, 0\n        li      t4, 10\n1:      mv      t0, a0\n        li      t1, 0\n2:      bltu    t0, t4, 3f\n        addi    t0, t0, -10\n        addi    t1, t1, 1\n        j       2b\n3:      addi    t0, t0, 48\n        add     t2, sp, t3\n        sb      t0, 0(t2)\n        addi    t3, t3, 1\n        mv      a0, t1\n        bnez    a0, 1b\n4:      addi    t3, t3, -1\n        add     t2, sp, t3\n        lbu     a0, 0(t2)\n        call    putc\n        bnez    t3, 4b\n        lw      ra, 12(sp)\n        addi    sp, sp, 16\n        ret\n\n# putc: a0 = byte to print.\nputc:   lui     t1, 0x20\n        sb      a0, 0(t1)\n        ret\n\n# finish: report PASS to the harness and halt.\nfinish: li      t0, 1\n        lui     t1, 0x20\n        sw      t0, 4(t1)\nhalt:   j       halt\n\n        .data\n        .align  2\narray:  .word   42, 7, 99, 3, 18, 64, 1, 27, 85, 11, 50, 5\n",
+  "text": "37110100170401001304c4ff9304c0001389f4ff635c2003930200001303040063d2220383250300032643006356b6002320c3002322b30093821200130343006ff01ffe1309f9ff6ff0dffc130900006356990293122900b382820003a5020097000000e780c0021305000297000000e7804008130919006ff09ffd1305a00097000000e78000076f004007130101ff23261100130e0000930ea000930205001303000063e8d201938262ff130313006ff05fff93820203b303c10123805300130e1e0013050300e31a05fc130efeffb303c10103c5030097000000e7808001e3160efe8320c1001301010167800000370302002300a300678000009302100037030200232253006f000000"
+ },
+ "sim_programs/fib": {
+  "data": "",
+  "source": ".section .text.init; .globl _start; _start: lui sp, 0x11;\n        li s0, 20\n        li a1, 0\n        li a2, 1\n1: beqz s0, 2f\n        add a3, a1, a2\n        mv a1, a2\n        mv a2, a3\n        addi s0, s0, -1\n        j 1b\n2: mv a0, a1\n        call print_uint\n        li t5, '\\n'; lui t6, 0x20; sb t5, 0(t6);\n        li t5, 1; lui t6, 0x20; sw t5, 4(t6); 9999: j 9999b;\nprint_uint: addi sp, sp, -16; li t3, 0; li t4, 10; 1: li t0, 0; 2: bltu a0, t4, 3f; addi a0, a0, -10; addi t0, t0, 1; j 2b; 3: addi a0, a0, 48; add t1, sp, t3; sb a0, 0(t1); addi t3, t3, 1; mv a0, t0; bnez a0, 1b; 4: addi t3, t3, -1; add t1, sp, t3; lbu a0, 0(t1); lui t2, 0x20; sb a0, 0(t2); bnez t3, 4b; addi sp, sp, 16; ret;\n",
+  "text": "37110100130440019305000013061000630c0400b386c50093050600138606001304f4ff6ff0dffe1385050097000000e7804002130fa000b70f02002380ef01130f1000b70f020023a2ef016f000000130101ff130e0000930ea000930200006368d501130565ff938212006ff05fff130505033303c1012300a300130e1e0013850200e31c05fc130efeff3303c10103450300b70302002380a300e3160efe1301010167800000"
+ },
+ "sim_programs/hello": {
+  "data": "48656c6c6f2c2054696e79435055210a00",
+  "source": ".section .text.init; .globl _start; _start: lui sp, 0x11;\n        la a0, msg\n        call print_str\n        li t5, 1; lui t6, 0x20; sw t5, 4(t6); 9999: j 9999b;\nprint_str: lui t1, 0x20; 1: lbu t0, 0(a0); beqz t0, 2f; sb t0, 0(t1); addi a0, a0, 1; j 1b; 2: ret;\n        .section .rodata\nmsg: .asciz \"Hello, TinyCPU!\\n\"\n",
+  "text": "37110100170501001305c5ff97000000e7808001130f1000b70f020023a2ef016f00000037030200834205006388020023005300130515006ff01fff67800000"
+ },
+ "sim_programs/memcpy": {
+  "data": "01000000efbeadde00000080ffffff7fffffffff785634120df0ad0bbebafeca0f0f0f0ff0f0f0f0ff00ff0000ff00ffdf9b5713e0ac6824aa55aa5555aa55aa000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004f4b0a004641494c0a00",
+  "source": ".section .text.init; .globl _start; _start: lui sp, 0x11;\n        la a0, dst\n        la a1, src\n        li a2, 64\n        call memcpy\n        la t0, dst\n        la t1, src\n        li t2, 16\n1: beqz t2, ok\n        lw t3, 0(t0)\n        lw t4, 0(t1)\n        bne t3, t4, bad\n        addi t0, t0, 4\n        addi t1, t1, 4\n        addi t2, t2, -1\n        j 1b\nok: la a0, s_ok\n        call print_str\n        li t5, 1; lui t6, 0x20; sw t5, 4(t6); 9999: j 9999b;\nbad: la a0, s_bad\n        call print_str\n        li t5, 3; lui t6, 0x20; sw t5, 4(t6); 9999: j 9999b;\nmemcpy: beqz a2, 2f\n1: lbu t0, 0(a1)\n        sb t0, 0(a0)\n        addi a0, a0, 1\n        addi a1, a1, 1\n        addi a2, a2, -1\n        bnez a2, 1b\n2: ret\nprint_str: lui t1, 0x20; 1: lbu t0, 0(a0); beqz t0, 2f; sb t0, 0(t1); addi a0, a0, 1; j 1b; 2: ret;\n        .data\n        .align 2\nsrc: .word 0x00000001, 0xdeadbeef, 0x80000000, 0x7fffffff, 0xffffffff, 0x12345678, 0x0badf00d, 0xcafebabe\n        .word 0x0f0f0f0f, 0xf0f0f0f0, 0x00ff00ff, 0xff00ff00, 0x13579bdf, 0x2468ace0, 0x55aa55aa, 0xaa55aa55\ndst: .space 64\ns_ok: .asciz \"OK\\n\"\ns_bad: .asciz \"FAIL\\n\"\n",
+  "text": "37110100170501001305c50397050100938545ff1306000497000000e780c007970201009382020217030100130383fd930300016380030203ae0200832e0300631ade0393824200130343009383f3ff6ff05ffe170501001305c50297000000e7808005130f1000b70f020023a2ef016f000000170501001305050197000000e7808003130f3000b70f020023a2ef016f000000630e060083c205002300550013051500938515001306f6ffe31606fe6780000037030200834205006388020023005300130515006ff01fff67800000"
+ },
+ "sim_programs/primes": {
+  "data": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "source": ".section .text.init; .globl _start; _start: lui sp, 0x11;\n        la s0, sieve\n        li s1, 60\n        li t0, 0\n1: bgt t0, s1, 2f\n        add t1, s0, t0\n        sb zero, 0(t1)\n        addi t0, t0, 1\n        j 1b\n2: li s2, 2\n3:\n        mv t2, s2\n        li t3, 0\n        mv t4, s2\n4: beqz t4, 5f\n        add t3, t3, t2\n        addi t4, t4, -1\n        j 4b\n5: bgt t3, s1, 8f\n        add t1, s0, s2\n        lbu t5, 0(t1)\n        bnez t5, 7f\n        mv t0, t3\n6: bgt t0, s1, 7f\n        add t1, s0, t0\n        li t5, 1\n        sb t5, 0(t1)\n        add t0, t0, s2\n        j 6b\n7: addi s2, s2, 1\n        j 3b\n8: li s2, 2\n9: bgt s2, s1, 11f\n        add t1, s0, s2\n        lbu t5, 0(t1)\n        bnez t5, 10f\n        mv a0, s2\n        call print_uint\n        li t5, ' '; lui t6, 0x20; sb t5, 0(t6);\n10: addi s2, s2, 1\n        j 9b\n11: li t5, '\\n'; lui t6, 0x20; sb t5, 0(t6);\n        li t5, 1; lui t6, 0x20; sw t5, 4(t6); 9999: j 9999b;\nprint_uint: addi sp, sp, -16; li t3, 0; li t4, 10; 1: li t0, 0; 2: bltu a0, t4, 3f; addi a0, a0, -10; addi t0, t0, 1; j 2b; 3: addi a0, a0, 48; add t1, sp, t3; sb a0, 0(t1); addi t3, t3, 1; mv a0, t0; bnez a0, 1b; 4: addi t3, t3, -1; add t1, sp, t3; lbu a0, 0(t1); lui t2, 0x20; sb a0, 0(t2); bnez t3, 4b; addi sp, sp, 16; ret;\n        .bss\nsieve: .space 60 + 1\n",
+  "text": "37110100170401001304c4ff9304c0039302000063ca54003303540023000300938212006ff01fff1309200093030900130e0000930e090063880e00330e7e00938efeff6ff05fff63cac40333032401034f030063100f0293020e0063cc540033035400130f10002300e301b38222016ff0dffe130919006ff05ffb1309200063c8240333032401034f0300631e0f001305090097000000e7808003130f0002b70f02002380ef01130919006ff05ffd130fa000b70f02002380ef01130f1000b70f020023a2ef016f000000130101ff130e0000930ea000930200006368d501130565ff938212006ff05fff130505033303c1012300a300130e1e0013850200e31c05fc130efeff3303c10103450300b70302002380a300e3160efe1301010167800000"
+ },
+ "sim_programs/sort": {
+  "data": "2a0000000700000063000000030000001200000040000000010000001b000000550000000b0000003200000005000000",
+  "source": ".section .text.init; .globl _start; _start: lui sp, 0x11;\n        la s0, array\n        li s1, 12\n        addi s2, s1, -1\n1: blez s2, 5f\n        li t0, 0\n        mv t1, s0\n2: bge t0, s2, 4f\n        lw a1, 0(t1)\n        lw a2, 4(t1)\n        ble a1, a2, 3f\n        sw a2, 0(t1)\n        sw a1, 4(t1)\n3: addi t0, t0, 1\n        addi t1, t1, 4\n        j 2b\n4: addi s2, s2, -1\n        j 1b\n5: li s2, 0\n6: bge s2, s1, 8f\n        slli t0, s2, 2\n        add t0, t0, s0\n        lw a0, 0(t0)\n        call print_uint\n        li t5, ' '; lui t6, 0x20; sb t5, 0(t6);\n        addi s2, s2, 1\n        j 6b\n8: li t5, '\\n'; lui t6, 0x20; sb t5, 0(t6);\n        li t5, 1; lui t6, 0x20; sw t5, 4(t6); 9999: j 9999b;\nprint_uint: addi sp, sp, -16; li t3, 0; li t4, 10; 1: li t0, 0; 2: bltu a0, t4, 3f; addi a0, a0, -10; addi t0, t0, 1; j 2b; 3: addi a0, a0, 48; add t1, sp, t3; sb a0, 0(t1); addi t3, t3, 1; mv a0, t0; bnez a0, 1b; 4: addi t3, t3, -1; add t1, sp, t3; lbu a0, 0(t1); lui t2, 0x20; sb a0, 0(t2); bnez t3, 4b; addi sp, sp, 16; ret;\n        .data\n        .align 2\narray: .word 42, 7, 99, 3, 18, 64, 1, 27, 85, 11, 50, 5\n",
+  "text": "37110100170401001304c4ff9304c0001389f4ff635c2003930200001303040063d2220383250300032643006356b6002320c3002322b30093821200130343006ff01ffe1309f9ff6ff0dffc130900006356990293122900b382820003a5020097000000e7808003130f0002b70f02002380ef01130919006ff09ffd130fa000b70f02002380ef01130f1000b70f020023a2ef016f000000130101ff130e0000930ea000930200006368d501130565ff938212006ff05fff130505033303c1012300a300130e1e0013850200e31c05fc130efeff3303c10103450300b70302002380a300e3160efe1301010167800000"
+ },
+ "snippet/alu_immediate": {
+  "data": "",
+  "source": "\n_start:\n    addi a0, zero, -2048\n    addi a1, a0, 2047\n    slti a2, a0, -1\n    sltiu a3, a0, -1\n    xori a4, a0, 0x7f0\n    ori  a5, a0, -16\n    andi a6, a0, 0x3c\n    slli a7, a0, 31\n    srli t0, a0, 4\n    srai t1, a0, 1\n",
+  "text": "130500809305f57f1326f5ff9336f5ff1347057f936705ff1378c5039318f5019352450013531540"
+ },
+ "snippet/alu_register": {
+  "data": "",
+  "source": "\n_start:\n    li a0, 0x7fffffff\n    li a1, -3\n    add a2, a0, a1\n    sub a3, a0, a1\n    sll a4, a0, a1\n    slt a5, a1, a0\n    sltu a6, a1, a0\n    xor a7, a0, a1\n    srl t0, a1, a0\n    sra t1, a1, a0\n    or  t2, a0, a1\n    and t3, a0, a1\n",
+  "text": "370500801305f5ff9305d0ff3306b500b306b5403317b500b3a7a50033b8a500b348b500b3d2a50033d3a540b363b500337eb500"
+ },
+ "snippet/branches": {
+  "data": "",
+  "source": "\n_start:\n    li a0, 5\n    li a1, -3\n    beq a0, a1, fwd\n    bne a0, a1, fwd\n    blt a1, a0, fwd\n    bge a0, a1, fwd\n    bltu a0, a1, fwd\n    bgeu a1, a0, fwd\n    nop\nfwd:\n    beq a0, a0, back\nback:\n    addi a0, a0, -1\n    bne a0, zero, back\n",
+  "text": "130550009305d0ff630eb500631cb50063caa5006358b5006366b50063f4a500130000006302a5001305f5ffe31e05fe"
+ },
+ "snippet/data_directives": {
+  "data": "01000000ffffffffffffff7fffffffff3412feffffff007fff410a616263640065662100000000eeee00000000000000efbeadde0000000009",
+  "source": "\n_start:\n    nop\n.data\n    .word 1, -1, 0x7fffffff, 0xffffffff\n    .half 0x1234, -2, 65535\n    .byte 0, 127, 255, 'A', '\\n'\n    .ascii \"ab\"\n    .asciz \"cd\"\n    .string \"ef\\x21\"\n    .space 3\n    .space 2, 0xee\n    .zero 2\n    .align 3\n    .word 0xdeadbeef\n    .balign 8\n    .byte 9\n",
+  "text": "13000000"
+ },
+ "snippet/equ_and_expressions": {
+  "data": "04000100010000000d",
+  "source": "\n.equ BASE, 0x10000\n.equ COUNT, 4 * 3 + 1\n_start:\n    li a0, BASE + COUNT\n    li a1, (1 << 12) - 1\n    addi a2, zero, COUNT - 1\n    li a3, -(COUNT)\n    li a4, 0xf0 | 0x0f\n    li a5, 0xff & ~0x0f\n    li a6, 7 % 4\n    li a7, 'z' - 'a'\n.data\n    .word BASE + 4, end - start_data\nstart_data:\n    .byte COUNT\nend:\n",
+  "text": "370501001305d500b71500009385f5ff1306c000930630ff1307f00f9307000f1308300093089001"
+ },
+ "snippet/jumps": {
+  "data": "",
+  "source": "\n_start:\n    jal target\n    jal ra, target\n    jal zero, target\n    la  t0, target\n    jalr zero, 0(t0)\n    jalr ra, t0, 8\n    jalr t1, 4(t0)\n    jalr t2\ntarget:\n    jalr zero, 0(ra)\n",
+  "text": "ef004002ef0000026f00c001970200009382820167800200e780820067834200e780030067800000"
+ },
+ "snippet/la_and_calls": {
+  "data": "01000000",
+  "source": "\n_start:\n    la a0, far\n    call near\n    tail near\n    call far\nnear:\n    ret\n.data\nfar: .word 1\n",
+  "text": "170501001305050097000000e7808001170300006700030197000100e78080fe67800000"
+ },
+ "snippet/li_values": {
+  "data": "",
+  "source": "\n_start:\n    li a0, 0\n    li a1, 2047\n    li a2, -2048\n    li a3, 2048\n    li a4, -2049\n    li a5, 0x12345000\n    li a6, 0x12345678\n    li a7, 0x7fffffff\n    li t0, 0x80000000\n    li t1, 0xffffffff\n    li t2, 0x800\n    li t3, 0xfffff800\n",
+  "text": "130500009305f07f13060080b71600009386068037f7ffff1307f77fb75734123758341213088867b70800809388f8ffb70200801303f0ffb713000093830380130e0080"
+ },
+ "snippet/loads_stores": {
+  "data": "017fff80ddccbbaa0000000000000000",
+  "source": "\n_start:\n    la  a0, buf\n    lb  a1, 0(a0)\n    lbu a2, 1(a0)\n    lh  a3, 2(a0)\n    lhu a4, -2(a0)\n    lw  a5, 4(a0)\n    sb  a1, 8(a0)\n    sh  a2, 10(a0)\n    sw  a3, 12(a0)\n.data\nbuf: .word 0x80ff7f01, 0xaabbccdd, 0, 0\n",
+  "text": "17050100130505008305050003461500831625000357e5ff832745002304b5002315c5002326d500"
+ },
+ "snippet/local_labels": {
+  "data": "",
+  "source": "\n_start:\n    li a0, 3\n1:  addi a0, a0, -1\n    bnez a0, 1b\n    j 2f\n2:  li a1, 1\n    beqz a1, 1f\n    nop\n1:  li a2, 2\n",
+  "text": "130530001305f5ffe31e05fe6f00400093051000638405001300000013062000"
+ },
+ "snippet/pseudo_arithmetic": {
+  "data": "",
+  "source": "\n_start:\n    nop\n    mv a0, a1\n    not a2, a3\n    neg a4, a5\n    seqz a6, a7\n    snez t0, t1\n    sltz t2, t3\n    sgtz t4, t5\n",
+  "text": "130000001385050013c6f6ff3307f04013b81800b3326000b3230e00b32ee001"
+ },
+ "snippet/pseudo_branches": {
+  "data": "",
+  "source": "\n_start:\n    li a0, 4\n    beqz a0, t\n    bnez a0, t\n    blez a0, t\n    bgez a0, t\n    bltz a0, t\n    bgtz a0, t\n    bgt a0, a1, t\n    ble a0, a1, t\n    bgtu a0, a1, t\n    bleu a0, a1, t\nt:\n    j t\n    jr ra\n    ret\n",
+  "text": "1305400063040502631205026350a002635e0500634c0500634aa00063c8a50063d6a50063e4a50063f2a5006f0000006780000067800000"
+ },
+ "snippet/rodata_and_sections": {
+  "data": "726f6461746100",
+  "source": "\n_start:\n    la a0, msg\n    lbu a1, 0(a0)\n.section .rodata\nmsg: .asciz \"rodata\"\n.section .text\n    nop\n",
+  "text": "17050100130505008345050013000000"
+ },
+ "snippet/system_and_counters": {
+  "data": "",
+  "source": "\n_start:\n    fence\n    ecall\n    ebreak\n    csrrs a0, cycle, zero\n    csrrs a1, time, zero\n    csrrs a2, instret, zero\n    csrrs a3, cycleh, zero\n    csrrs a4, timeh, zero\n    csrrs a5, instreth, zero\n    csrrs a6, 0xc00, zero\n    csrr  a7, instret\n    rdcycle t0\n    rdtime t1\n    rdinstret t2\n    rdcycleh t3\n    rdtimeh t4\n    rdinstreth t5\n",
+  "text": "0f00f00f7300000073001000732500c0f32510c0732620c0f32600c8732710c8f32720c8732800c0f32820c0f32200c0732310c0f32320c0732e00c8f32e10c8732f20c8"
+ },
+ "snippet/text_alignment": {
+  "data": "",
+  "source": "\n_start:\n    nop\n    .byte 1\n    .align 2\n    nop\n    .byte 2, 3\n    .align 2\n    nop\n",
+  "text": "1300000001000100130000000203010013000000"
+ },
+ "snippet/upper_immediates": {
+  "data": "",
+  "source": "\n_start:\n    lui   a0, 0x12345\n    lui   a1, 0xfffff\n    lui   a2, 0x80000\n    auipc a3, 0\n    auipc a4, 0x1\n",
+  "text": "37553412b7f5ffff370600809706000017170000"
+ }
+}

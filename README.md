@@ -13,7 +13,9 @@ Third in the series after [tiny-gpu](https://github.com/deaneeth/tiny-gpu) and [
 
 </div>
 
-> **Status: Phase 5 done (WASM harness).** Both cores run in one WebAssembly module (`wasm/build.sh`, 77 KB gzipped) and pass the golden fixtures in Node (`node wasm/test.mjs`). Next: the web app.
+> **Status: Phase 6 done (web app, first slice).** The browser app at `/app` assembles RV32I, runs it on either core in the browser, and steps through every cycle with the pipeline, registers, memory and console. Next: the remaining views.
+>
+> *Previous: Phase 5 done (WASM harness).* Both cores run in one WebAssembly module (`wasm/build.sh`, 77 KB gzipped) and pass the golden fixtures in Node (`node wasm/test.mjs`). Next: the web app.
 >
 > *Previous: Phase 4 done (hazards).* Both RV32I cores retire instructions identically to the Python golden ISS on all 40 official `rv32ui-p-*` tests, 5 programs and hundreds of random programs. The 5-stage core has forwarding and load-use stalls (switchable at runtime) and matches an independent timing model cycle for cycle. Next: the WASM harness.
 > See [`docs/PLAN.md`](docs/PLAN.md) for the full roadmap.
@@ -40,7 +42,7 @@ rtl/*.sv -> Verilator C++ -> Emscripten -> web/public/tiny_cpu.wasm -> React isl
 | `sim/` | golden ISS (`sim/golden/`), cocotb tests, asm programs (`sim/programs/`) |
 | `sw/` | linker script, crt0, riscv-tests port + Makefile |
 | `wasm/` | Verilator -> Emscripten harness |
-| `web/` | Astro + React visualizer |
+| `web/` | Astro + React app: assembler, editor, pipeline view, cycle controls |
 | `fpga/` | Yosys/nextpnr flows (Phase 9) |
 | `docs/` | plan, architecture, state schema |
 
@@ -57,7 +59,7 @@ bash scripts/lint.sh && bash sim/run.sh all     # needs: make -C sw all
 bash wasm/build.sh && node wasm/test.mjs
 
 # Web
-cd web && pnpm install && pnpm dev     # open /spike after building the WASM
+cd web && pnpm install && pnpm dev     # then open /app (or `pnpm build && pnpm test:e2e` for the smoke tests)
 ```
 
 ## License

@@ -9,6 +9,9 @@
   --ok: #3fb950;
   --err: #f85149;
   --panel: #161b22;
+  --line: #30363d;
+  --active: #1f2d3d;
+  --warn: #d29922;
 }
 
 :root[data-theme="light"] {
@@ -19,6 +22,9 @@
   --ok: #1a7f37;
   --err: #cf222e;
   --panel: #f6f8fa;
+  --line: #d0d7de;
+  --active: #ddf4ff;
+  --warn: #9a6700;
 }
 
 body {

@@ -6,11 +6,14 @@ import Layout from "@/layouts/Layout.astro";
   <main class="mx-auto max-w-2xl px-4 py-16">
     <h1 class="text-4xl font-bold">TinyCPU</h1>
     <p class="mt-4" style="color: var(--muted)">
-      A real, synthesizable RV32I RISC-V CPU in SystemVerilog, compiled to WebAssembly and
-      running live in your browser. Under construction.
+      A real, synthesizable RV32I RISC-V CPU in SystemVerilog, compiled to WebAssembly. Write assembly,
+      run it on the simulated pipeline, and step through every cycle.
     </p>
     <p class="mt-8">
-      <a class="underline" style="color: var(--accent)" href="/spike">Toolchain spike &rarr;</a>
+      <a class="underline" style="color: var(--accent)" href="/app">Open the CPU &rarr;</a>
+    </p>
+    <p class="mt-4 text-sm" style="color: var(--muted)">
+      <a class="underline" href="/spike">WASM toolchain spike</a>
     </p>
   </main>
 </Layout>
