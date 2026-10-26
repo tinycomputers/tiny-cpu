@@ -2,9 +2,9 @@ name: WASM Build
 
 on:
   push:
-    paths: ['rtl/**', 'wasm/**', '.github/workflows/wasm.yml']
+    paths: ['rtl/**', 'wasm/**', 'web/public/**', '.tools/**', '.github/workflows/wasm.yml']
   pull_request:
-    paths: ['rtl/**', 'wasm/**', '.github/workflows/wasm.yml']
+    paths: ['rtl/**', 'wasm/**', 'web/public/**', '.tools/**', '.github/workflows/wasm.yml']
 
 jobs:
   wasm-build:
@@ -13,10 +13,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Verilator and build deps
+      # The harness needs the same Verilator as the RTL suites (cocotb's >= 5.036 rule does not apply
+      # here, but one version everywhere is simpler). Built from source and cached by version tag.
+      - name: Cache Verilator build
+        id: cache-verilator
+        uses: actions/cache@v4
+        with:
+          path: ~/verilator-install
+          key: verilator-v5.036-ubuntu-24.04
+
+      - name: Build Verilator v5.036 from source
+        if: steps.cache-verilator.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y verilator build-essential
+          sudo apt-get update -qq
+          sudo apt-get install -y autoconf flex bison libfl2 libfl-dev help2man perl
+          git clone --depth 1 --branch v5.036 https://github.com/verilator/verilator.git /tmp/verilator
+          cd /tmp/verilator
+          autoconf
+          ./configure --prefix="$HOME/verilator-install"
+          make -j$(nproc)
+          make install
+
+      - name: Add Verilator to PATH
+        run: echo "$HOME/verilator-install/bin" >> $GITHUB_PATH
 
       - name: Set up Emscripten
         uses: mymindstorm/setup-emsdk@v14
@@ -25,13 +44,14 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Build spike WASM
+      - name: Build tiny_cpu WASM (both cores, one module)
+        run: bash wasm/build.sh
+
+      - name: Node test against the golden fixtures
+        run: node wasm/test.mjs
+
+      - name: Build spike WASM (toolchain check)
         run: bash wasm/spike/build.sh
 
       - name: Run spike headless
         run: node wasm/spike/test.mjs
-
-      - name: Report artifact size
-        run: |
-          test -f web/public/spike/counter.wasm
-          echo "spike wasm: $(du -h web/public/spike/counter.wasm | cut -f1)"

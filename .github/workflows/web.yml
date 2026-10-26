@@ -2,9 +2,9 @@ name: Web CI
 
 on:
   push:
-    paths: ['web/**', '.github/workflows/web.yml']
+    paths: ['web/**', 'sim/golden/gen_asm_fixtures.py', '.github/workflows/web.yml']
   pull_request:
-    paths: ['web/**', '.github/workflows/web.yml']
+    paths: ['web/**', 'sim/golden/gen_asm_fixtures.py', '.github/workflows/web.yml']
 
 jobs:
   web-ci:
@@ -35,6 +35,20 @@ jobs:
         working-directory: web
         run: pnpm typecheck
 
+      # Unit and integration tests: assembler vs GNU bytes, disassembler round trip, run model, and every
+      # preset on the committed WASM module (web/public/tiny_cpu.mjs, rebuilt by the WASM workflow).
+      - name: Unit and integration tests
+        working-directory: web
+        run: pnpm test
+
       - name: Build
         working-directory: web
         run: pnpm build
+
+      - name: Install Chromium for the smoke tests
+        working-directory: web
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Browser smoke tests (production build)
+        working-directory: web
+        run: pnpm test:e2e

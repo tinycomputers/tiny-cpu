@@ -67,7 +67,7 @@ fits iCE40 BRAM.
 | Memory read timing | **Synchronous** read on both IMEM and DMEM | Maps straight to FPGA BRAM. IMEM is addressed with `pc_next`, so the instruction is ready in IF/ID. DMEM is addressed in EX, so data is ready in MEM. |
 | Branch / JAL / JALR resolution | In **EX**, predict not-taken | Simplest correct design. A taken branch flushes IF/ID and ID/EX (2-cycle penalty), which is very visible in the UI. |
 | Forwarding | EX/MEM→EX and MEM/WB→EX, for both rs1 and rs2 | Standard design. Store data (rs2) is forwarded as well. |
-| Register-file write/read in the same cycle | Write-first bypass inside `regfile.sv` | Removes the WB→ID hazard without an extra forwarding path. |
+| Register-file write/read in the same cycle | Write-first bypass inside `regfile.sv`, parameter `BYPASS` (1 in the pipeline, **0 in the single-cycle core**) | Removes the WB→ID hazard without an extra forwarding path. In the single-cycle core the writer is the reader, so a bypass is wrong and a combinational loop (found in Phase 2). |
 | Load-use hazard | 1-cycle stall: freeze PC and IF/ID, insert a bubble into ID/EX | The only stall in v1. |
 | `x0` | Hard-wired to zero in the register file. Forwarding ignores `rd == 0` | A common bug source; covered by tests. |
 | Runtime knob `cfg_forward_en` | Top-level input pin. When 0, forwarding is disabled and the hazard unit stalls on **every** RAW hazard | Lets the Hazard Lab toggle forwarding live with one WASM build. |
@@ -90,6 +90,8 @@ rvfi_rd_addr, rvfi_rd_wdata,
 rvfi_mem_addr, rvfi_mem_rmask, rvfi_mem_wmask, rvfi_mem_rdata, rvfi_mem_wdata,
 rvfi_halt
 ```
+
+Phase 1 additions (implemented in `sim/golden/iss.py`): `pc_wdata` (next PC), `misaligned` (load/store was forced into alignment) and `cycle_dependent` (rd value depends on timing: `rdcycle`/`rdtime`/CYCLE MMIO; lockstep masks it). `mem_addr` is the word-aligned address, masks are byte lanes within it, and `mem_rdata`/`mem_wdata` are lane-positioned words.
 
 ---
 
@@ -197,15 +199,15 @@ Four layers. Each phase below says which layers must be green.
    readable diff with the disassembly of the last 8 retired instructions.
 3. **Official compliance:** all `rv32ui-p-*` tests from `riscv-tests` on **both** cores, using a
    custom `env/tinycpu` (our `link.ld`, with `RVTEST_PASS/FAIL` writing `TOHOST`).
-   Excluded: `fence_i`, `ma_data`. Expected: 37–39 tests pass, depending on the riscv-tests revision.
+   Excluded: `fence_i`, `ma_data`. Verified in Phase 1: 40 tests (42 sources minus those two) on riscv-tests `3df703c`; the largest, `ld_st`, is 3732 B and fits the 4 KiB IMEM.
 4. **Random programs:** `test_random.py` generates N programs (seeded) of 200–2000 instructions,
    weighted toward hazards: back-to-back RAW, load-use, branch after load, store after load,
    writes to x0, JALR to computed targets. Every program runs in lockstep, with
    `cfg_forward_en` ∈ {0, 1}. CI runs 200 seeds; nightly runs 5000.
 
 **Directed hazard tests** (`sim/programs/hazards_*.S` + `test_hazards.py`) check **exact
-cycle counts**, not just results. Example: `lw x1,0(x2); add x3,x1,x1` must take exactly 1
-extra cycle with forwarding on and 3 with it off. These numbers are the ones the Hazard Lab
+cycle counts**, not just results. Example: `lw x1,0(x2); add x3,x1,x1` takes exactly 1
+extra cycle with forwarding on and 2 with it off (Phase 4 measured: the write-first regfile bypass saves the third). These numbers are the ones the Hazard Lab
 displays, so they get pinned.
 
 **Performance assertions:** fib(20) and bubble sort on 32 elements have pinned cycle counts per
@@ -357,7 +359,7 @@ Estimates assume one person working part-time, roughly at the pace of tiny-tpu.
 
 ### Phase 3: Pipelined core without hazard handling (1 week)
 - `mem_sync`, `core_pipe` with IF/ID/EX/MEM/WB registers (packed structs), `dbg_*` ports per stage.
-- Hazards are handled by hand-inserted NOPs only. A `hazard_free/*.S` set proves the datapath works.
+- Data hazards are avoided by construction (NOP padding via `golden/progbuild.py`); `hazard_free.py` holds the program set. The taken-branch flush is included here because lockstep cannot match the ISS without it.
 - **Exit:** the hazard-free programs pass lockstep; the waveform in GTKWave shows the 5-stage overlap.
 
 ### Phase 4: Hazards (1.5 weeks)

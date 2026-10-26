@@ -1,0 +1,18 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import CpuApp from "@/components/CpuApp";
+import { ThemeToggle } from "@/components/ThemeToggle";
+---
+
+<Layout title="TinyCPU - run RV32I on the simulated core">
+  <main class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6">
+    <header class="flex flex-wrap items-baseline justify-between gap-2">
+      <h1 class="text-2xl font-bold">TinyCPU</h1>
+      <div class="flex items-center gap-3">
+        <ThemeToggle client:only="react" />
+        <a class="text-sm underline" style="color: var(--accent)" href="/">About</a>
+      </div>
+    </header>
+    <CpuApp client:only="react" />
+  </main>
+</Layout>

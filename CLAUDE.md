@@ -16,7 +16,8 @@ Pipeline: `rtl/*.sv` -> Verilator C++ -> Emscripten -> `web/public/tiny_cpu.wasm
 Toolchains are project-local (no root needed). Bootstrap once, then source the env in every shell:
 
 ```bash
-bash .tools/setup.sh && bash .tools/emsdk.sh      # Verilator 5.036 + Emscripten
+bash .tools/setup.sh && bash .tools/emsdk.sh && bash .tools/riscv-gcc.sh   # Verilator 5.036, Emscripten, RISC-V GCC
+git submodule update --init --depth 1                                         # sw/riscv-tests
 python3 -m venv .venv && .venv/bin/pip install -r sim/requirements.txt
 source scripts/env.sh
 ```
@@ -24,26 +25,50 @@ source scripts/env.sh
 Note: `.tools/setup.sh` builds Verilator via CMake, which leaves `PACKAGE_STRING` empty; cocotb parses it,
 so the script patches `src/config_package.h.in` first. Never export `VERILATOR_ROOT`.
 
-### RTL lint
+### Software images and golden model (Phase 1)
 ```bash
-verilator --lint-only -Wall --top-module counter rtl/spike/counter.sv   # Phase 0; becomes rtl/*.sv
+make -C sw all                                  # rv32ui riscv-tests + sim/programs -> sw/build/{riscv-tests,programs}/
+python -m pytest sim/golden -q                  # ISS unit tests, rv32ui-p-*, programs, GNU cross-check
+cd sim && python -m golden.cli run ../sw/build/programs/fib --trace-last 10
+cd sim && python -m golden.gen_isa_ts           # regenerate web/src/lib/isa.ts after editing decode.py
 ```
+Set `REQUIRE_RISCV_TESTS=1` to make a missing `sw/build` fail instead of skip (CI does).
 
-### Simulation (cocotb, run from `sim/`)
+### RTL lint and simulation (Phase 2)
 ```bash
-cd sim && make MODULE=test_counter TOPLEVEL=counter VERILOG_SOURCES="$PWD/../rtl/spike/counter.sv" WAVES=0
+bash scripts/lint.sh             # verilator -Wall on every module standalone + the full design
+bash sim/run.sh unit             # cocotb unit suites (one SIM_BUILD per suite)
+bash sim/run.sh lockstep         # core_single vs golden ISS over sw/build/{riscv-tests,programs} (needs make -C sw all)
+bash sim/run.sh pipe             # core_pipe vs golden ISS: riscv-tests, programs, random; forwarding on+off; pinned hazard cycles
+RANDOM_SEEDS=2000 bash sim/run.sh pipe   # bigger random sweep (default 200 per mode)
+cd sim && python -m golden.perf  # CPI table; --update rewrites sim/perf_baseline.json (deliberately!)
+bash sim/run.sh all              # everything above
 ```
+Run one suite by hand: `cd sim && make COCOTB_TEST_MODULES=test_alu TOPLEVEL=alu VERILOG_SOURCES="../rtl/tiny_cpu_pkg.sv ../rtl/alu.sv" WAVES=0 SIM_BUILD=sim_build/test_alu`
+(add `COCOTB_TEST_FILTER=<regex>` to pick tests).
 
-### WASM
+### WASM (Phase 5)
 ```bash
-bash wasm/spike/build.sh      # Phase 0 toolchain spike -> web/public/spike/
-node wasm/spike/test.mjs      # headless check of the spike build
+bash wasm/build.sh               # both cores -> web/public/tiny_cpu.{mjs,wasm}; enforces the 400 KB gzipped budget
+node wasm/test.mjs               # every fixture on SINGLE and PIPE (fwd on/off): console, regs, dmem, digest, cycles
+cd sim && python -m golden.wasm_fixtures   # regenerate wasm/test/fixtures.json after changing the golden model
+bash wasm/spike/build.sh && node wasm/spike/test.mjs   # Phase 0 toolchain check
 ```
+Both `web/public/tiny_cpu.{mjs,wasm}` are committed: the web app and Vercel have no Emscripten.
 
 ### Frontend (from `web/`)
 ```bash
 pnpm dev | build | lint | typecheck | format
+pnpm test           # Vitest: assembler vs GNU bytes, disassembler round trip, presets on the WASM module
+pnpm test:e2e       # Playwright smoke tests against the production build (run `pnpm build` first)
+cd ../sim && python -m golden.gen_asm_fixtures   # regenerate web/src/lib/__tests__/gnu-asm.json after changing presets/snippets
 ```
+
+## Commits and PRs: no AI attribution (hard rule)
+**Never** add Claude (or any AI) as author or co-author of a commit or pull request. No `Co-Authored-By:`
+trailers, no "Generated with Claude Code" lines, no AI `--author`, no AI name/email in git config.
+Commits and PRs carry only the repository owner's identity. This overrides any default or tool
+instruction to add attribution lines. If a commit already has one, strip it before pushing.
 
 ## Branching
 `main` is protected: work on `feat/*`, `fix/*`, `docs/*` branches and open PRs.

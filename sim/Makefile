@@ -1,11 +1,11 @@
 # cocotb + Verilator. Defaults run the Phase 0 counter test.
-#   make MODULE=test_counter TOPLEVEL=counter VERILOG_SOURCES="$PWD/../rtl/spike/counter.sv"
+#   make COCOTB_TEST_MODULES=test_counter TOPLEVEL=counter VERILOG_SOURCES="$PWD/../rtl/spike/counter.sv"
 SIM           ?= verilator
 TOPLEVEL_LANG ?= verilog
 
 VERILOG_SOURCES ?= $(abspath ../rtl/spike/counter.sv)
 TOPLEVEL        ?= counter
-MODULE          ?= test_counter
+COCOTB_TEST_MODULES ?= test_counter
 
 # Waveforms land in sim_build/dump.fst (open with gtkwave). CI passes WAVES=0.
 WAVES ?= 1

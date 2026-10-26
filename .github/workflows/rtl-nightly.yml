@@ -1,0 +1,54 @@
+name: RTL Nightly
+
+# Long random sweeps: hazard-dense programs in lockstep with the golden ISS, forwarding on and off.
+# A failing seed is reproducible locally:  RANDOM_SEEDS=<N> bash sim/run.sh pipe
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      seeds:
+        description: 'Random seeds per mode'
+        default: '5000'
+
+jobs:
+  random-sweep:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Verilator build
+        id: cache-verilator
+        uses: actions/cache@v4
+        with:
+          path: ~/verilator-install
+          key: verilator-v5.036-ubuntu-24.04
+
+      - name: Build Verilator v5.036 from source
+        if: steps.cache-verilator.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y autoconf flex bison libfl2 libfl-dev help2man perl
+          git clone --depth 1 --branch v5.036 https://github.com/verilator/verilator.git /tmp/verilator
+          cd /tmp/verilator
+          autoconf
+          ./configure --prefix="$HOME/verilator-install"
+          make -j$(nproc)
+          make install
+
+      - name: Add Verilator to PATH
+        run: echo "$HOME/verilator-install/bin" >> $GITHUB_PATH
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install -r sim/requirements.txt
+
+      - name: Random hazard sweep (pipelined core)
+        run: bash sim/run.sh pipe
+        env:
+          RANDOM_SEEDS: ${{ github.event.inputs.seeds || '5000' }}

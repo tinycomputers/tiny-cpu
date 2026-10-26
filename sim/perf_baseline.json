@@ -1,0 +1,86 @@
+{
+  "fib": {
+    "instret": 3190,
+    "single": 3190,
+    "pipe_fwd": 4758,
+    "pipe_nofwd": 4824
+  },
+  "hazard_free/alu_zoo": {
+    "instret": 265,
+    "single": 265,
+    "pipe_fwd": 269,
+    "pipe_nofwd": 269
+  },
+  "hazard_free/branches": {
+    "instret": 229,
+    "single": 229,
+    "pipe_fwd": 263,
+    "pipe_nofwd": 263
+  },
+  "hazard_free/bubble_sort": {
+    "instret": 749,
+    "single": 749,
+    "pipe_fwd": 863,
+    "pipe_nofwd": 863
+  },
+  "hazard_free/calls": {
+    "instret": 75,
+    "single": 75,
+    "pipe_fwd": 97,
+    "pipe_nofwd": 97
+  },
+  "hazard_free/console_and_csr": {
+    "instret": 214,
+    "single": 214,
+    "pipe_fwd": 218,
+    "pipe_nofwd": 218
+  },
+  "hazard_free/fib": {
+    "instret": 361,
+    "single": 361,
+    "pipe_fwd": 407,
+    "pipe_nofwd": 407
+  },
+  "hazard_free/mem_raw_adjacent": {
+    "instret": 62,
+    "single": 62,
+    "pipe_fwd": 66,
+    "pipe_nofwd": 66
+  },
+  "hazard_free/mem_zoo": {
+    "instret": 316,
+    "single": 316,
+    "pipe_fwd": 320,
+    "pipe_nofwd": 320
+  },
+  "hazard_free/memcpy_sum": {
+    "instret": 1164,
+    "single": 1164,
+    "pipe_fwd": 1292,
+    "pipe_nofwd": 1292
+  },
+  "hello": {
+    "instret": 91,
+    "single": 91,
+    "pipe_fwd": 150,
+    "pipe_nofwd": 171
+  },
+  "memcpy": {
+    "instret": 552,
+    "single": 552,
+    "pipe_fwd": 816,
+    "pipe_nofwd": 1042
+  },
+  "primes": {
+    "instret": 1963,
+    "single": 1963,
+    "pipe_fwd": 2836,
+    "pipe_nofwd": 3652
+  },
+  "sort": {
+    "instret": 1216,
+    "single": 1216,
+    "pipe_fwd": 1744,
+    "pipe_nofwd": 2117
+  }
+}

@@ -13,7 +13,11 @@ Third in the series after [tiny-gpu](https://github.com/deaneeth/tiny-gpu) and [
 
 </div>
 
-> **Status: Phase 0 (scaffold + toolchain spike).** The CPU itself starts in Phase 1-2.
+> **Status: Phase 7 done (views).** The app at `/app` has four views: the pipeline, the single-cycle datapath, a hazard lab that measures each hazard on the pipeline with and without forwarding, and a programs comparison with a data-memory heatmap. Next: the docs pages and launch.
+>
+> *Previous: Phase 6 done (web app, first slice); Phase 5 done (WASM harness).* Both cores run in one WebAssembly module (`wasm/build.sh`, 77 KB gzipped) and pass the golden fixtures in Node (`node wasm/test.mjs`). Next: the web app.
+>
+> *Previous: Phase 4 done (hazards).* Both RV32I cores retire instructions identically to the Python golden ISS on all 40 official `rv32ui-p-*` tests, 5 programs and hundreds of random programs. The 5-stage core has forwarding and load-use stalls (switchable at runtime) and matches an independent timing model cycle for cycle. Next: the WASM harness.
 > See [`docs/PLAN.md`](docs/PLAN.md) for the full roadmap.
 
 Every pipeline register, forwarding path and stall the UI will draw is a live `dbg_*` signal from the
@@ -34,11 +38,11 @@ rtl/*.sv -> Verilator C++ -> Emscripten -> web/public/tiny_cpu.wasm -> React isl
 
 | Path | Contents |
 |---|---|
-| `rtl/` | SystemVerilog (`spike/counter.sv` is the Phase 0 toolchain check) |
-| `sim/` | cocotb tests, golden ISS (Phase 1) |
-| `sw/` | linker script, crt0, riscv-tests port (Phase 1) |
+| `rtl/` | SystemVerilog: single-cycle and 5-stage cores + building blocks (`spike/counter.sv` is the Phase 0 toolchain check) |
+| `sim/` | golden ISS (`sim/golden/`), cocotb tests, asm programs (`sim/programs/`) |
+| `sw/` | linker script, crt0, riscv-tests port + Makefile |
 | `wasm/` | Verilator -> Emscripten harness |
-| `web/` | Astro + React visualizer |
+| `web/` | Astro + React app: assembler, editor, pipeline view, cycle controls |
 | `fpga/` | Yosys/nextpnr flows (Phase 9) |
 | `docs/` | plan, architecture, state schema |
 
@@ -49,13 +53,13 @@ rtl/*.sv -> Verilator C++ -> Emscripten -> web/public/tiny_cpu.wasm -> React isl
 python3 -m venv ~/.venvs/tinycpu && source ~/.venvs/tinycpu/bin/activate
 pip install -r sim/requirements.txt
 verilator --lint-only -Wall --top-module counter rtl/spike/counter.sv
-cd sim && make WAVES=0
+bash scripts/lint.sh && bash sim/run.sh all     # needs: make -C sw all
 
-# WASM spike (needs Verilator + Emscripten)
-bash wasm/spike/build.sh && node wasm/spike/test.mjs
+# WASM (needs Verilator + Emscripten)
+bash wasm/build.sh && node wasm/test.mjs
 
 # Web
-cd web && pnpm install && pnpm dev     # open /spike after building the WASM
+cd web && pnpm install && pnpm dev     # then open /app (or `pnpm build && pnpm test:e2e` for the smoke tests)
 ```
 
 ## License
