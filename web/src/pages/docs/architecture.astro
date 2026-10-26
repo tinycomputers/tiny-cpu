@@ -1,0 +1,62 @@
+---
+import DocsLayout from "@/layouts/DocsLayout.astro";
+---
+
+<DocsLayout title="Architecture" current="/docs/architecture">
+  <p>
+    The design is split so that each piece can be checked on its own. The RTL is the hardware. A golden model
+    written in Python is the specification. The WebAssembly module is the same hardware, seen from the browser.
+  </p>
+
+  <h2>Memory map</h2>
+  <table>
+    <thead>
+      <tr><th>Region</th><th>Address</th><th>Size</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>IMEM</td><td><code>0x0000_0000</code></td><td>4 KiB</td><td>Loaded by the harness; read-only to the core.</td></tr>
+      <tr><td>DMEM</td><td><code>0x0001_0000</code></td><td>4 KiB</td><td>Byte-addressable: LB, LH, LW, SB, SH, SW.</td></tr>
+      <tr><td>CONSOLE</td><td><code>0x0002_0000</code></td><td>1 word</td><td>Writing a byte sends it to the console panel.</td></tr>
+      <tr><td>TOHOST</td><td><code>0x0002_0004</code></td><td>1 word</td><td>Writing 1 reports PASS and halts the core.</td></tr>
+      <tr><td>CYCLE</td><td><code>0x0002_0008</code></td><td>1 word</td><td>Reads the cycle counter.</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Instruction and data memory are separate ports (a Harvard design), but they share one address space, so a
+    program can read its own constants from DMEM.
+  </p>
+
+  <h2>Two cores, one instruction set</h2>
+  <ul>
+    <li>
+      <b>Single-cycle</b>: fetch, decode, execute, memory and write-back in one cycle. It is the reference for
+      what the program should do, and its cycle count is exactly its instruction count.
+    </li>
+    <li>
+      <b>5-stage pipeline</b>: IF, ID, EX, MEM and WB, with pipeline registers between them. It takes the same
+      instructions and produces the same results, but may take more cycles, because of hazards.
+    </li>
+  </ul>
+  <p>Both cores are compiled into the same WebAssembly module, and the app chooses one at run time.</p>
+
+  <h2>The golden model</h2>
+  <p>
+    The reference is an instruction-set simulator written in Python (<code>sim/golden/iss.py</code>). It executes
+    every instruction and writes a retire record for each one: the program counter, the instruction, the register
+    and memory it changed, and the next program counter. The RTL is checked by comparing its retire records to the
+    model's, instruction by instruction.
+  </p>
+
+  <h2>Assembler in the browser</h2>
+  <p>
+    The app assembles RV32I source itself. Its output is byte-for-byte what the GNU RISC-V toolchain produces for
+    the same source, which is tested against GNU's output.
+  </p>
+
+  <h2>The contract between hardware and browser</h2>
+  <p>
+    The WebAssembly module exposes the state of each cycle as a plain object: the five stages, the hazard flags,
+    the registers, the retired instruction, console output and tohost. The field-by-field definition is in
+    <code>docs/STATE_SCHEMA.md</code>, and the browser checks every state it receives against it.
+  </p>
+</DocsLayout>

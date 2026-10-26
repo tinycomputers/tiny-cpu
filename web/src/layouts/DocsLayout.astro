@@ -1,0 +1,88 @@
+---
+import Layout from "@/layouts/Layout.astro";
+
+interface Props {
+  title: string;
+  current: string;
+}
+
+const { title, current } = Astro.props;
+const pages = [
+  { href: "/docs/how-it-works", label: "How it works" },
+  { href: "/docs/architecture", label: "Architecture" },
+  { href: "/docs/the-pipeline", label: "The pipeline" },
+  { href: "/docs/hazards", label: "Hazards" },
+  { href: "/docs/verification", label: "Verification" },
+];
+---
+
+<Layout title={`${title} · TinyCPU`}>
+  <header class="border-b border-[var(--line)]">
+    <nav class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 text-sm" aria-label="Site">
+      <a href="/" class="font-bold text-[var(--fg)]">TinyCPU</a>
+      {
+        pages.map((p) => (
+          <a href={p.href} class="text-[var(--muted)] hover:text-[var(--fg)]" aria-current={p.href === current ? "page" : undefined}>
+            {p.label}
+          </a>
+        ))
+      }
+      <a href="/app" class="ml-auto rounded-md bg-[var(--accent)] px-3 py-1 font-semibold text-[var(--bg)]">Open the CPU</a>
+    </nav>
+  </header>
+  <main class="docs mx-auto flex max-w-3xl flex-col gap-5 px-4 py-10">
+    <h1 class="text-3xl font-bold text-[var(--fg)]">{title}</h1>
+    <slot />
+  </main>
+  <footer class="mx-auto max-w-3xl px-4 pb-10 text-sm text-[var(--muted)]">
+    <a class="underline" href="https://github.com/deaneeth/tiny-cpu">Source on GitHub</a>
+  </footer>
+</Layout>
+
+<style is:global>
+  .docs h2 {
+    margin-top: 1.25rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--fg);
+  }
+  .docs p,
+  .docs li {
+    line-height: 1.65;
+    color: var(--fg);
+  }
+  .docs ul {
+    list-style: disc;
+    padding-left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .docs code {
+    font-family: ui-monospace, monospace;
+    font-size: 0.9em;
+    background: var(--panel);
+    padding: 0.05rem 0.3rem;
+    border-radius: 0.25rem;
+  }
+  .docs table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  .docs th,
+  .docs td {
+    text-align: left;
+    padding: 0.4rem 0.5rem;
+    border-top: 1px solid var(--line);
+    vertical-align: top;
+  }
+  .docs th {
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .docs a {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+</style>

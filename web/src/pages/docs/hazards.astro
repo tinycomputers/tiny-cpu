@@ -1,0 +1,55 @@
+---
+import DocsLayout from "@/layouts/DocsLayout.astro";
+import { MiniRun } from "@/components/MiniRun";
+import { HAZARD_CASES } from "@/lib/hazard-lab";
+
+const loadUse = HAZARD_CASES.find((c) => c.id === "load-use")?.source ?? "";
+---
+
+<DocsLayout title="Hazards" current="/docs/hazards">
+  <p>
+    A hazard is a situation where the next instruction cannot run in the next cycle. The pipeline has three kinds,
+    and the core handles each one differently. The <a href="/app">app's hazard lab</a> runs each kind on the
+    pipeline with forwarding on and off, and on the single-cycle core, so you can see the cost.
+  </p>
+
+  <h2>Data hazards: a value is not ready yet</h2>
+  <p>
+    If an instruction reads a register that the instruction just before it is still computing, the value does not
+    exist yet in the register file. The pipeline has two options.
+  </p>
+  <ul>
+    <li>
+      <b>Forwarding</b>: take the value from the EX/MEM or MEM/WB pipeline register, where it already is, and pass
+      it straight into EX. With forwarding, an ALU result can be used by the very next instruction with no delay.
+      Without it, the pipeline must wait.
+    </li>
+    <li>
+      <b>Stalling</b>: hold the dependent instruction in ID for a cycle. The hazard lab's "ALU to ALU, distance 1"
+      case shows the difference: forwarding removes the stall.
+    </li>
+  </ul>
+
+  <h2>Load-use: the one case forwarding cannot fix</h2>
+  <p>
+    A load returns its value at the end of the MEM stage, which is later than the EX stage that needs it. Even with
+    forwarding, the next instruction must wait one cycle. This is the only stall the core takes with forwarding on.
+    Step through this program and find the cycle where the dependent <code>addi</code> waits.
+  </p>
+  <MiniRun client:visible source={loadUse} core="PIPE" forwarding={true} caption="Load-use, forwarding on" />
+
+  <h2>Control hazards: a branch changes the path</h2>
+  <p>
+    A branch decides whether to jump in EX, but two instructions behind it have already been fetched. The core
+    predicts that a branch is not taken, so it keeps fetching in order. If the branch is taken, those two
+    instructions are discarded: a taken branch costs two cycles, with or without forwarding. A branch that is not
+    taken costs nothing.
+  </p>
+
+  <h2>Measured, not assumed</h2>
+  <p>
+    Each claim on this page is a test. The Vitest suite runs every hazard case on the WASM module and checks the
+    cycle counts: the distance-1 stall disappears with forwarding, the load-use case stalls exactly once, the taken
+    branch costs the same with and without forwarding, and the independent case is the same either way.
+  </p>
+</DocsLayout>
