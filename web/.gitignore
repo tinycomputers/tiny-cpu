@@ -3,3 +3,5 @@
 .vercel/README.txt
 test-results/
 playwright-report/
+.vercel
+.env*

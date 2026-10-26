@@ -13,8 +13,8 @@ Third in the series after [tiny-gpu](https://github.com/deaneeth/tiny-gpu) and [
 
 </div>
 
-> **Status: Phase 8 built, not yet deployed.** The app at `/app`, the landing page and five docs pages are built and
-> tested on `feat/phase-8-launch`. The Vercel deploy and FPGA synthesis numbers (Phase 9) are still to come.
+> **Live: [tiny-cpu.vercel.app](https://tiny-cpu.vercel.app)**. The app at `/app`, the landing page and the docs are
+> deployed. FPGA synthesis numbers (Phase 9) are the remaining piece of the plan.
 >
 > See [`docs/PLAN.md`](docs/PLAN.md) for the full roadmap.
 
