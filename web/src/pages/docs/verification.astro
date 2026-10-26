@@ -1,0 +1,43 @@
+---
+import DocsLayout from "@/layouts/DocsLayout.astro";
+---
+
+<DocsLayout title="Verification" current="/docs/verification">
+  <p>
+    A processor is only worth what its tests can show. Each row below is a check that runs in continuous integration
+    on every change, and each one can fail.
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>What</th><th>How much</th><th>Against</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Official RISC-V instruction tests (rv32ui)</td>
+        <td>40 of 42, both cores</td>
+        <td>The golden model. <code>fence_i</code> and <code>ma_data</code> are excluded: they need features this core does not have.</td>
+      </tr>
+      <tr><td>Hand-written programs</td><td>5, both cores</td><td>The golden model for results; the timing model for pipeline cycles.</td></tr>
+      <tr><td>Random programs</td><td>260, both forwarding modes</td><td>The golden model for results; the timing model for pipeline cycles.</td></tr>
+      <tr><td>Fault cases</td><td>13</td><td>The golden model: illegal instructions, bad accesses, misaligned jumps.</td></tr>
+      <tr><td>Mutation checks</td><td>7 on the pipeline (Phase 3), 11 on hazards (Phase 4)</td><td>Each check must fail on a deliberately broken core. A check that passes on a broken core is itself a bug.</td></tr>
+      <tr><td>WASM module</td><td>534 checks</td><td>Golden fixtures, on both cores, with forwarding on and off.</td></tr>
+      <tr><td>Web app</td><td>67 unit tests and 9 browser tests</td><td>The assembler against GNU's bytes, and the presets on the WASM core.</td></tr>
+      <tr><td>Size budget</td><td>About 77 KB gzipped</td><td>The build fails above 400 KB.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>What "cycle-exact" means</h2>
+  <p>
+    The pipeline's cycle count is checked against an independent timing model written in Python
+    (<code>sim/golden/pipemodel.py</code>). The RTL and the model are two separate implementations of the same
+    timing rules, so agreement between them is evidence about both.
+  </p>
+
+  <h2>What is not verified yet</h2>
+  <ul>
+    <li>Clock speed. Cycles are measured; time to finish needs the FPGA synthesis numbers, which are still to come.</li>
+    <li>The two excluded riscv-tests, and anything the core does not implement (interrupts, privilege modes, unaligned access).</li>
+  </ul>
+</DocsLayout>

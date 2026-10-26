@@ -1,0 +1,47 @@
+---
+import DocsLayout from "@/layouts/DocsLayout.astro";
+import { MiniRun } from "@/components/MiniRun";
+import fib from "@/lib/presets/fib.s?raw";
+---
+
+<DocsLayout title="The pipeline" current="/docs/the-pipeline">
+  <p>
+    The pipelined core works on five instructions at once, one per stage. A new instruction starts every cycle, so
+    in steady state the core finishes one instruction per cycle, as the single-cycle core does, when no hazard
+    interrupts the flow.
+  </p>
+
+  <h2>The five stages</h2>
+  <table>
+    <thead>
+      <tr><th>Stage</th><th>What happens</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>IF</td><td>Fetch the instruction at the program counter.</td></tr>
+      <tr><td>ID</td><td>Decode it and read the source registers.</td></tr>
+      <tr><td>EX</td><td>Compute the ALU result, or the branch decision, or a memory address.</td></tr>
+      <tr><td>MEM</td><td>Load from or store to data memory.</td></tr>
+      <tr><td>WB</td><td>Write the result to the destination register.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Watch it run</h2>
+  <p>
+    This is the Fibonacci program on the pipelined core, with forwarding on. The stage boxes show which instruction
+    is in each stage on the selected cycle. Step through a few cycles and watch the first instructions move
+    through the stages.
+  </p>
+  <MiniRun client:visible source={fib} core="PIPE" forwarding={true} caption="Fibonacci, 5-stage pipeline with forwarding" />
+
+  <h2>Two things that break the flow</h2>
+  <ul>
+    <li>
+      <b>A hazard</b> is an instruction that needs a value the pipeline has not produced yet. The pipeline either
+      forwards the value from a later stage or stalls. See <a href="/docs/hazards">Hazards</a>.
+    </li>
+    <li>
+      <b>A taken branch</b> changes the program counter after two instructions have already been fetched behind it.
+      The pipeline predicts that branches are not taken, and when one is taken it discards those two instructions.
+    </li>
+  </ul>
+</DocsLayout>

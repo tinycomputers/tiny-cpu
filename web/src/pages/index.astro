@@ -1,19 +1,54 @@
 ---
 import Layout from "@/layouts/Layout.astro";
+import { MiniRun } from "@/components/MiniRun";
+import fib from "@/lib/presets/fib.s?raw";
 ---
 
-<Layout title="TinyCPU">
-  <main class="mx-auto max-w-2xl px-4 py-16">
-    <h1 class="text-4xl font-bold">TinyCPU</h1>
-    <p class="mt-4" style="color: var(--muted)">
-      A real, synthesizable RV32I RISC-V CPU in SystemVerilog, compiled to WebAssembly. Write assembly,
-      run it on the simulated pipeline, and step through every cycle.
-    </p>
-    <p class="mt-8">
-      <a class="underline" style="color: var(--accent)" href="/app">Open the CPU &rarr;</a>
-    </p>
-    <p class="mt-4 text-sm" style="color: var(--muted)">
-      <a class="underline" href="/spike">WASM toolchain spike</a>
-    </p>
+<Layout title="TinyCPU - a RISC-V CPU that runs in your browser">
+  <header class="border-b border-[var(--line)]">
+    <nav class="mx-auto flex max-w-5xl items-center gap-5 px-4 py-3 text-sm" aria-label="Site">
+      <a href="/" class="font-bold text-[var(--fg)]">TinyCPU</a>
+      <a href="/docs/how-it-works" class="text-[var(--muted)] hover:text-[var(--fg)]">Docs</a>
+      <a href="/docs/verification" class="text-[var(--muted)] hover:text-[var(--fg)]">Verification</a>
+      <a href="/app" class="ml-auto rounded-md bg-[var(--accent)] px-3 py-1 font-semibold text-[var(--bg)]">Open the CPU</a>
+    </nav>
+  </header>
+
+  <main class="mx-auto flex max-w-5xl flex-col gap-12 px-4 py-12">
+    <section class="flex flex-col gap-4">
+      <h1 class="text-4xl font-bold text-[var(--fg)] sm:text-5xl">A real RISC-V CPU, running in your browser.</h1>
+      <p class="max-w-2xl text-lg text-[var(--muted)]">
+        TinyCPU is a 32-bit RISC-V processor written in SystemVerilog, with a single-cycle core and a 5-stage
+        pipeline. The hardware is compiled to WebAssembly, so the clock you see below is the real design, stepping
+        one cycle at a time.
+      </p>
+      <div class="flex flex-wrap gap-3">
+        <a href="/app" class="rounded-md bg-[var(--accent)] px-4 py-2 font-semibold text-[var(--bg)]">Open the CPU</a>
+        <a href="/docs/how-it-works" class="rounded-md border border-[var(--line)] px-4 py-2 text-[var(--fg)]">How it works</a>
+      </div>
+    </section>
+
+    <section class="flex flex-col gap-3">
+      <h2 class="text-xl font-semibold text-[var(--fg)]">Fibonacci on the pipeline</h2>
+      <p class="text-[var(--muted)]">
+        This runs live in your browser. Step through it to watch five instructions share the pipeline.
+      </p>
+      <MiniRun client:load source={fib} core="PIPE" forwarding={true} caption="fib(20), 5-stage pipeline with forwarding" />
+    </section>
+
+    <section class="grid gap-4 sm:grid-cols-3">
+      <div class="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4">
+        <h3 class="font-semibold text-[var(--fg)]">Two cores</h3>
+        <p class="mt-2 text-sm text-[var(--muted)]">A single-cycle reference and a 5-stage pipeline with forwarding, stalls and branch flushes.</p>
+      </div>
+      <div class="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4">
+        <h3 class="font-semibold text-[var(--fg)]">Checked, not assumed</h3>
+        <p class="mt-2 text-sm text-[var(--muted)]">40 official RISC-V tests and 260 random programs agree with a golden model, and pipeline cycle counts match an independent timing model.</p>
+      </div>
+      <div class="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4">
+        <h3 class="font-semibold text-[var(--fg)]">Every cycle visible</h3>
+        <p class="mt-2 text-sm text-[var(--muted)]">Registers, memory, hazards and the datapath, one clock edge at a time.</p>
+      </div>
+    </section>
   </main>
 </Layout>

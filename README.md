@@ -13,11 +13,9 @@ Third in the series after [tiny-gpu](https://github.com/deaneeth/tiny-gpu) and [
 
 </div>
 
-> **Status: Phase 7 done (views).** The app at `/app` has four views: the pipeline, the single-cycle datapath, a hazard lab that measures each hazard on the pipeline with and without forwarding, and a programs comparison with a data-memory heatmap. Next: the docs pages and launch.
+> **Status: Phase 8 built, not yet deployed.** The app at `/app`, the landing page and five docs pages are built and
+> tested on `feat/phase-8-launch`. The Vercel deploy and FPGA synthesis numbers (Phase 9) are still to come.
 >
-> *Previous: Phase 6 done (web app, first slice); Phase 5 done (WASM harness).* Both cores run in one WebAssembly module (`wasm/build.sh`, 77 KB gzipped) and pass the golden fixtures in Node (`node wasm/test.mjs`). Next: the web app.
->
-> *Previous: Phase 4 done (hazards).* Both RV32I cores retire instructions identically to the Python golden ISS on all 40 official `rv32ui-p-*` tests, 5 programs and hundreds of random programs. The 5-stage core has forwarding and load-use stalls (switchable at runtime) and matches an independent timing model cycle for cycle. Next: the WASM harness.
 > See [`docs/PLAN.md`](docs/PLAN.md) for the full roadmap.
 
 Every pipeline register, forwarding path and stall the UI will draw is a live `dbg_*` signal from the
@@ -27,12 +25,29 @@ compiled RTL. Nothing on screen is faked.
 rtl/*.sv -> Verilator C++ -> Emscripten -> web/public/tiny_cpu.wasm -> React island -> SVG
 ```
 
-## Planned
+## What it does
 
-- Single-cycle and 5-stage pipelined RV32I cores sharing one ALU/decoder/regfile
-- Verified against a Python golden ISS, the official `riscv-tests` and random hazard-heavy programs
-- In-browser assembler, step/rewind, datapath / pipeline / hazard-lab / programs views
-- FPGA synthesis numbers (iCE40 / ECP5)
+- A single-cycle and a 5-stage pipelined RV32I core sharing one decoder, ALU and register file, with forwarding,
+  load-use stalls and taken-branch flushes.
+- The same hardware in the browser: an assembler (byte-identical to GNU's), an editor, and a viewer that steps through
+  every clock edge with the pipeline, the single-cycle datapath, a hazard lab and a programs comparison.
+- FPGA synthesis numbers for iCE40 and ECP5 (Phase 9, in progress).
+
+## Verification
+
+Each check runs in continuous integration on every change.
+
+| What | How much | Against |
+|---|---|---|
+| Official RISC-V instruction tests (`rv32ui`) | 40 of 42, both cores | Python golden ISS. `fence_i` and `ma_data` are excluded. |
+| Hand-written and random programs | 5 and 260 (both forwarding modes) | Golden ISS for results; timing model for pipeline cycles |
+| Fault cases | 13 | Golden ISS |
+| Mutation checks | 7 (pipeline) and 11 (hazards) | Each one must make a test fail |
+| WASM module | 534 checks | Golden fixtures, both cores, forwarding on and off |
+| Web app | 72 unit tests, 17 browser tests | Assembler vs GNU bytes; presets on the WASM core |
+| Size | About 77 KB gzipped | Build fails above 400 KB |
+
+Details, and what is not verified yet, are on the Verification docs page and in `docs/PLAN.md`.
 
 ## Layout
 

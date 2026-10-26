@@ -32,7 +32,11 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 - Phase 7 (views): DONE. L1 datapath SVG (`DatapathView`, values from a single-cycle run of the same program, `datapath.ts`),
   L3 hazard lab (`hazard-lab.ts`: 8 cases, each run on pipeline fwd/no-fwd and single-cycle), L4 programs comparison and data-memory
   heatmap (`programs-compare.ts`, `Heatmap`), light/dark theme toggle that restores its saved choice. 67 Vitest + 9 Playwright.
-- Next: docs pages and launch (PLAN section 8, the non-app pages); Phase 8 per docs/PLAN.md.
+- Phase 8 (landing and docs): BUILT on feat/phase-8-launch, not yet deployed. `/` has a live fib run in the hero; `/docs/*` has the
+  five pages (how it works, architecture, the pipeline, hazards, verification), each with a live `MiniRun` embed where it helps.
+  72 Vitest and 17 Playwright tests pass. Still to do: Vercel deploy (needs the user's go-ahead), the hero GIF/MP4, and the
+  CodeMirror editor, pass-by-pass replay and default-branch items that the plan lists under Phase 8.
+- Next: Phase 9 (FPGA synthesis), which can run alongside the Phase 8 launch work.
 
 ## Interfaces Phase 2+ must honour (defined by the ISS, `sim/golden/iss.py`)
 - Retire record fields, lane/mask conventions, forced alignment, `cycle_dependent` masking: see the module docstring and PLAN 2.4.
@@ -120,3 +124,11 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 - The datapath view needs operand values, which a pipeline run does not expose per instruction. It reads them from a single-cycle
   run of the same program; both cores compute the same architecture, so the values match.
 - `tabpanel` ids and `aria-controls` must match the tab ids exactly, or the Playwright role queries and screen readers miss them.
+
+## Gotchas found in Phase 8
+- The plan refers to tiny-tpu's `LandingEmbed` and `gen-og-image.mjs`, but that repo has no web app here, so the landing and
+  docs pages use their own `MiniRun` island instead.
+- A branch switch whose tool call was interrupted did not happen; check `git branch --show-current` before building on it.
+- A `.gitignore` rule with a trailing comment is not an exception: git reads the comment as part of the pattern. Keep comments on
+  their own lines (this hid the WASM binary from git until Phase 7's CI caught it).
+- An embedded run starts at cycle 1, so "Halted" appears only after stepping to the end. Tests must click "Go to end" first.

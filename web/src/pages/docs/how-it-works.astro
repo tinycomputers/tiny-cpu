@@ -1,0 +1,42 @@
+---
+import DocsLayout from "@/layouts/DocsLayout.astro";
+import { MiniRun } from "@/components/MiniRun";
+import hello from "@/lib/presets/hello.s?raw";
+---
+
+<DocsLayout title="How it works" current="/docs/how-it-works">
+  <p>
+    TinyCPU is a 32-bit RISC-V (RV32I) processor written in SystemVerilog. It has two cores that share one
+    instruction set: a single-cycle reference core, which finishes one instruction per clock, and a 5-stage
+    pipelined core, which overlaps instructions and handles the hazards that creates.
+  </p>
+  <p>
+    Everything on this site runs the real hardware. The SystemVerilog is compiled by Verilator into C++, the C++
+    is compiled by Emscripten into WebAssembly, and the browser steps that WebAssembly one clock edge at a time.
+    Nothing is simulated in JavaScript.
+  </p>
+
+  <h2>The chain, from source to screen</h2>
+  <ul>
+    <li><b>RTL</b>: <code>rtl/*.sv</code>, both cores and the memory-mapped I/O.</li>
+    <li><b>Verilator</b>: turns the RTL into one C++ model per core, so both run in one WebAssembly module.</li>
+    <li><b>Emscripten</b>: links the models into <code>tiny_cpu.wasm</code>, about 77 KB gzipped.</li>
+    <li><b>The app</b>: an assembler and a viewer that show every cycle, every register and every byte of memory.</li>
+  </ul>
+
+  <h2>Try it: a program on the single-cycle core</h2>
+  <p>
+    The program below prints a greeting one byte at a time through the console register, then reports PASS.
+    On the single-cycle core every instruction takes exactly one cycle, so the cycle count equals the instruction
+    count. Step through it.
+  </p>
+  <MiniRun client:visible source={hello} core="SINGLE" caption="Hello, on the single-cycle core" />
+
+  <h2>Where to go next</h2>
+  <ul>
+    <li><a href="/docs/architecture">Architecture</a>: the memory map, the two cores and how they are checked.</li>
+    <li><a href="/docs/the-pipeline">The pipeline</a>: the five stages, and what happens to an instruction in each.</li>
+    <li><a href="/docs/hazards">Hazards</a>: when the pipeline has to wait, and how forwarding avoids it.</li>
+    <li><a href="/docs/verification">Verification</a>: what is tested, and against what.</li>
+  </ul>
+</DocsLayout>
