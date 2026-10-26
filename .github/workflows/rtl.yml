@@ -55,6 +55,9 @@ jobs:
       - name: Install RISC-V GCC
         run: bash .tools/riscv-gcc.sh
 
+      - name: Add RISC-V GCC to PATH
+        run: echo "$GITHUB_WORKSPACE/.tools/riscv-gcc/bin" >> $GITHUB_PATH
+
       - name: Build riscv-tests and programs
         run: |
           export PATH="$PWD/.tools/riscv-gcc/bin:$PATH"
