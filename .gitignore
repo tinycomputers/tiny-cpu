@@ -28,7 +28,8 @@ web/public/spike/
 
 *.o
 *.wasm
-!web/public/tiny_cpu.wasm   # shipped artifacts: the web app and Vercel build have no Emscripten
+# Shipped artifacts (the web app and Vercel build have no Emscripten): a trailing comment would break this rule.
+!web/public/tiny_cpu.wasm
 !web/public/tiny_cpu.mjs
 
 # Toolchain checkouts
