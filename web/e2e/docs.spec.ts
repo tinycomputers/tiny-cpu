@@ -37,6 +37,20 @@ test("the how-it-works embed runs on the single-cycle core", async ({ page }) =>
   await expect(embed.getByText(/Halted at cycle \d+ — PASS/)).toBeVisible();
 });
 
+test("the landing page carries the social card, canonical link and structured data", async ({ page, request }) => {
+  await page.goto("/");
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", /\/og-image\.png$/);
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary_large_image");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /tiny-cpu\.vercel\.app\/$/);
+  const jsonLd = await page.locator('script[type="application/ld+json"]').textContent();
+  expect(JSON.parse(jsonLd ?? "{}")["@type"]).toBe("SoftwareSourceCode");
+  const image = await request.get("/og-image.png");
+  expect(image.ok()).toBeTruthy();
+  const sitemap = await request.get("/sitemap.xml");
+  expect(sitemap.ok()).toBeTruthy();
+  expect(await sitemap.text()).toContain("/docs/verification/");
+});
+
 test("docs pages have no horizontal scroll at phone width", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/docs/verification");

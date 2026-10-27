@@ -4,10 +4,26 @@ import { MiniRun } from "@/components/MiniRun";
 import fib from "@/lib/presets/fib.s?raw";
 ---
 
-<Layout title="TinyCPU - a RISC-V CPU that runs in your browser">
+<Layout
+  title="TinyCPU: a RISC-V CPU in SystemVerilog, running in your browser"
+  description="TinyCPU is an open-source RV32I RISC-V processor in SystemVerilog, with a single-cycle core and a 5-stage pipeline with forwarding and hazard handling. It compiles to WebAssembly so you can step through every clock cycle in your browser."
+  structuredData={{
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    name: "TinyCPU",
+    description: "A real, synthesizable RV32I RISC-V CPU in SystemVerilog (single-cycle and 5-stage pipelined), compiled to WebAssembly and running live in the browser.",
+    url: "https://tiny-cpu.vercel.app",
+    codeRepository: "https://github.com/tinycomputers/tiny-cpu",
+    programmingLanguage: ["SystemVerilog", "TypeScript", "Python", "C++"],
+    runtimePlatform: "WebAssembly",
+    license: "https://opensource.org/licenses/MIT",
+    keywords: ["RISC-V", "RV32I", "CPU", "SystemVerilog", "pipeline", "computer architecture", "WebAssembly", "FPGA", "education"],
+    author: { "@type": "Organization", name: "tinycomputers", url: "https://github.com/tinycomputers" },
+  }}
+>
   <header class="border-b border-[var(--line)]">
     <nav class="mx-auto flex max-w-5xl items-center gap-5 px-4 py-3 text-sm" aria-label="Site">
-      <a href="/" class="font-bold text-[var(--fg)]">TinyCPU</a>
+      <a href="/" class="flex items-center gap-2 font-bold text-[var(--fg)]"><img src="/logo.svg" alt="" width="26" height="26" />TinyCPU</a>
       <a href="/docs/how-it-works" class="text-[var(--muted)] hover:text-[var(--fg)]">Docs</a>
       <a href="/docs/verification" class="text-[var(--muted)] hover:text-[var(--fg)]">Verification</a>
       <a href="/app" class="ml-auto rounded-md bg-[var(--accent)] px-3 py-1 font-semibold text-[var(--bg)]">Open the CPU</a>
