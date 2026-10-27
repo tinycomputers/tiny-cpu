@@ -4,11 +4,11 @@
 
 **A real, synthesizable RV32I RISC-V CPU in SystemVerilog,<br>compiled to WebAssembly and running your assembly live in the browser.**
 
-Third in the series after [tiny-gpu](https://github.com/deaneeth/tiny-gpu) and [tiny-tpu](https://github.com/deaneeth/tiny-tpu).
+Third in the series after [tiny-gpu](https://github.com/tinycomputers/tiny-gpu) and [tiny-tpu](https://github.com/tinycomputers/tiny-tpu).
 
-[![RTL CI](https://github.com/deaneeth/tiny-cpu/actions/workflows/rtl.yml/badge.svg)](https://github.com/deaneeth/tiny-cpu/actions/workflows/rtl.yml)
-[![WASM Build](https://github.com/deaneeth/tiny-cpu/actions/workflows/wasm.yml/badge.svg)](https://github.com/deaneeth/tiny-cpu/actions/workflows/wasm.yml)
-[![Web CI](https://github.com/deaneeth/tiny-cpu/actions/workflows/web.yml/badge.svg)](https://github.com/deaneeth/tiny-cpu/actions/workflows/web.yml)
+[![RTL CI](https://github.com/tinycomputers/tiny-cpu/actions/workflows/rtl.yml/badge.svg)](https://github.com/tinycomputers/tiny-cpu/actions/workflows/rtl.yml)
+[![WASM Build](https://github.com/tinycomputers/tiny-cpu/actions/workflows/wasm.yml/badge.svg)](https://github.com/tinycomputers/tiny-cpu/actions/workflows/wasm.yml)
+[![Web CI](https://github.com/tinycomputers/tiny-cpu/actions/workflows/web.yml/badge.svg)](https://github.com/tinycomputers/tiny-cpu/actions/workflows/web.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e)](LICENSE)
 
 </div>
