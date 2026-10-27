@@ -14,7 +14,7 @@ Third in the series after [tiny-gpu](https://github.com/deaneeth/tiny-gpu) and [
 </div>
 
 > **Live: [tiny-cpu.vercel.app](https://tiny-cpu.vercel.app)**. The app at `/app`, the landing page and the docs are
-> deployed. FPGA synthesis numbers (Phase 9) are the remaining piece of the plan.
+> deployed. The iCE40 synthesis (Phase 9) builds and runs in simulation; the board itself is not yet tested.
 >
 > See [`docs/PLAN.md`](docs/PLAN.md) for the full roadmap.
 
@@ -31,7 +31,20 @@ rtl/*.sv -> Verilator C++ -> Emscripten -> web/public/tiny_cpu.wasm -> React isl
   load-use stalls and taken-branch flushes.
 - The same hardware in the browser: an assembler (byte-identical to GNU's), an editor, and a viewer that steps through
   every clock edge with the pipeline, the single-cycle datapath, a hazard lab and a programs comparison.
-- FPGA synthesis numbers for iCE40 and ECP5 (Phase 9, in progress).
+- FPGA synthesis for the iCE40UP5K (iCEBreaker): 14.98 MHz post-route, 93% of the logic cells, no latches. See the FPGA section.
+
+## FPGA
+
+The iCE40UP5K (iCEBreaker) build of the pipelined core, with a UART and LEDs around it, synthesizes cleanly (`bash fpga/ice40/build.sh`):
+
+| Resource | Used | Available |
+|---|---|---|
+| Logic cells | 4958 | 5280 (93%) |
+| Block RAM | 17 | 30 |
+
+The clock reaches 14.98 MHz post-route, above the 12 MHz oscillator, and the netlist has no latches. In simulation the top
+level prints `6765` over its UART and reports PASS on the LEDs (`bash sim/run.sh fpga`). The board itself is not yet tested:
+the UART and LED pins still need to be placed for the board. Details in [`fpga/README.md`](fpga/README.md).
 
 ## Verification
 

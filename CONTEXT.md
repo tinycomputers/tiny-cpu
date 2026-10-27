@@ -36,7 +36,11 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
   five pages (how it works, architecture, the pipeline, hazards, verification), each with a live `MiniRun` embed where it helps.
   72 Vitest and 17 Playwright tests pass. Still to do: Vercel deploy (needs the user's go-ahead), the hero GIF/MP4, and the
   CodeMirror editor, pass-by-pass replay and default-branch items that the plan lists under Phase 8.
-- Next: Phase 9 (FPGA synthesis), which can run alongside the Phase 8 launch work.
+- Phase 9 (FPGA, iCE40UP5K): DONE in simulation and synthesis. `fpga/ice40/fpga_top.sv` runs the pipelined core on a program
+  preloaded into BRAM (`fpga/images/fib.*.hex`), prints the console over a 115200-baud UART, and shows the run on the LEDs.
+  `bash fpga/ice40/build.sh`: 4958/5280 LCs (93%), 17/30 BRAM, 14.98 MHz post-route, no latches. `bash sim/run.sh fpga` decodes the
+  UART in simulation (fib prints 6765). The board is not yet tested: UART and LED pins are unconstrained. ECP5 not done.
+- Next: the board bring-up (pins for the UART and LEDs, a bitstream, then fib on the board), and the ECP5 target if wanted.
 
 ## Interfaces Phase 2+ must honour (defined by the ISS, `sim/golden/iss.py`)
 - Retire record fields, lane/mask conventions, forced alignment, `cycle_dependent` masking: see the module docstring and PLAN 2.4.
@@ -132,3 +136,14 @@ every pipeline register, forwarding path and stall comes from a `dbg_*` port on 
 - A `.gitignore` rule with a trailing comment is not an exception: git reads the comment as part of the pattern. Keep comments on
   their own lines (this hid the WASM binary from git until Phase 7's CI caught it).
 - An embedded run starts at cycle 1, so "Halted" appears only after stepping to the end. Tests must click "Go to end" first.
+
+## Gotchas found in Phase 9
+- Yosys's SystemVerilog parser is narrower than the simulators': no package imports in module headers, no typed string parameters,
+  no ANSI-style function arguments, and no early `return` in those functions. `fpga/prepare_rtl.py` converts a copy for synthesis;
+  the simulators keep the originals. The two functions were also rewritten in plain form in the RTL.
+- A memory whose read merges the write data inside the same process maps to flip-flops, not block RAM (72,000 logic cells on this
+  part). `mem_sync` now reads first and merges after the read register, which gives the same values and maps to BRAM.
+- Verilator treats width warnings as errors in the FPGA top: the UART bit-period comparison needed a sized constant.
+- The "sv2v" route for converting SystemVerilog was not available: its release download was blocked by the permission check, so the
+  converter is the local replacement. Don't retry the download.
+- nextpnr prints the timing twice; the last line is post-route, and that is the number to quote.

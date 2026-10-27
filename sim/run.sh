@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cocotb suites. Usage: bash sim/run.sh unit | lockstep | all   (needs `source scripts/env.sh`)
+# cocotb suites. Usage: bash sim/run.sh unit | lockstep | pipe | fpga | all   (needs `source scripts/env.sh`)
 # Each suite gets its own SIM_BUILD: cocotb does not notice a TOPLEVEL change in a shared dir.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -53,11 +53,22 @@ pipe() {
         mem_sync.sv forward_unit.sv hazard_unit.sv core_single.sv core_pipe.sv tiny_cpu_top.sv
 }
 
+fpga() {
+    # The FPGA top runs the fib image from fpga/images/ (absolute path: the simulator's working directory varies).
+    local img="$(cd .. && pwd)/fpga/images"
+    EXTRA_COMPILE_ARGS="-G'IMEM_INIT=\"$img/fib.imem.hex\"' -G'DMEM_INIT=\"$img/fib.dmem.hex\"' -Wno-PINMISSING" \
+        SIM_TAG=_fpga run test_fpga_top fpga_top \
+        alu.sv imm_gen.sv branch_unit.sv lsu.sv decoder.sv regfile.sv csr_counters.sv mmio.sv \
+        mem_comb.sv mem_sync.sv forward_unit.sv hazard_unit.sv core_single.sv core_pipe.sv tiny_cpu_top.sv \
+        ../fpga/ice40/fpga_top.sv
+}
+
 case "${1:-all}" in
     unit)     unit ;;
     lockstep) lockstep ;;
     pipe)     pipe ;;
-    all)      unit; lockstep; pipe ;;
+    fpga)     fpga ;;
+    all)      unit; lockstep; pipe; fpga ;;
     *) echo "usage: $0 unit|lockstep|pipe|all" >&2; exit 2 ;;
 esac
 

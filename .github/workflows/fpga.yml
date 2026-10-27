@@ -1,0 +1,43 @@
+name: FPGA
+
+# Synthesis, place and route of the iCE40 top level, with the numbers in the job summary. The UART simulation
+# that checks the same top level runs in rtl.yml, next to the other cocotb suites.
+on:
+  push:
+    paths: ['rtl/**', 'fpga/**', '.github/workflows/fpga.yml']
+  pull_request:
+    paths: ['rtl/**', 'fpga/**', '.github/workflows/fpga.yml']
+
+jobs:
+  ice40:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Yosys and nextpnr (WebAssembly builds, no system packages)
+        run: pip install yowasp-yosys yowasp-nextpnr-ice40
+
+      - name: Synthesize, place and route for iCE40UP5K
+        shell: bash
+        env:
+          YOSYS: yowasp-yosys
+          NEXTPNR: yowasp-nextpnr-ice40
+        run: |
+          set -o pipefail
+          mkdir -p fpga/ice40/build   # tee writes the summary before build.sh creates the directory
+          bash fpga/ice40/build.sh 2>&1 | tee fpga/ice40/build/summary.txt
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## iCE40UP5K (iCEBreaker) build"
+            echo '```'
+            cat fpga/ice40/build/summary.txt 2>/dev/null || echo "build did not complete"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -5,6 +5,8 @@
 // testbench/harness uses to place a program image while the core is in reset.
 module mem_comb #(
     parameter int unsigned WORDS = 1024,
+    // Optional $readmemh image for synthesis (FPGA builds); empty = all zeros, as in simulation.
+    parameter string       INIT  = "",
     localparam int unsigned AW   = $clog2(WORDS)
 ) (
     input  logic          clk,
@@ -22,6 +24,7 @@ module mem_comb #(
 
     initial begin
         for (int i = 0; i < WORDS; i++) mem[i] = 32'b0;
+        if (INIT != "") $readmemh(INIT, mem);
     end
 
     always_ff @(posedge clk) begin

@@ -48,3 +48,6 @@ sw/build/
 !.tools/emsdk.sh
 !.tools/riscv-gcc.sh
 sim/results*.xml
+
+# FPGA build products (fpga/ice40/build.sh)
+fpga/ice40/build/
