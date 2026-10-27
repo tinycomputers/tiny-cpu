@@ -31,11 +31,16 @@ module forward_unit (
     localparam logic [1:0] FWD_EXMEM = 2'd1;
     localparam logic [1:0] FWD_MEMWB = 2'd2;
 
-    function automatic logic [1:0] pick(input logic uses, input logic [4:0] rs);
-        if (!forward_en || !ex_valid || !uses || rs == 5'd0) return FWD_NONE;
-        if (mm_wr && mm_rd == rs) return FWD_EXMEM;
-        if (wb_wr && wb_rd == rs) return FWD_MEMWB;
-        return FWD_NONE;
+    // Old-style argument list and a result variable, not early returns: Yosys's parser (FPGA build) needs both.
+    function automatic logic [1:0] pick;
+        input logic uses;
+        input logic [4:0] rs;
+        begin
+            if (!forward_en || !ex_valid || !uses || rs == 5'd0) pick = FWD_NONE;
+            else if (mm_wr && mm_rd == rs) pick = FWD_EXMEM;
+            else if (wb_wr && wb_rd == rs) pick = FWD_MEMWB;
+            else pick = FWD_NONE;
+        end
     endfunction
 
     assign fwd_a = pick(ex_uses_rs1, ex_rs1);

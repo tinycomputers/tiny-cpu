@@ -1,0 +1,3 @@
+# iCEBreaker (iCE40UP5K, sg48). Only the 12 MHz oscillator is pinned here, so the timing constraint is real.
+# UART TX and the LEDs are not pinned: place them for your board's header and LEDs before programming it.
+set_io clk 35

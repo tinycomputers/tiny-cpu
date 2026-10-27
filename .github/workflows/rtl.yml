@@ -84,3 +84,7 @@ jobs:
 
       - name: cocotb - 5-stage core lockstep vs ISS (hazard-free programs)
         run: bash sim/run.sh pipe
+
+      # The iCE40 top level runs fib on the pipeline and prints 6765 over its UART (decoded in simulation).
+      - name: cocotb - FPGA top prints fib over UART
+        run: bash sim/run.sh fpga

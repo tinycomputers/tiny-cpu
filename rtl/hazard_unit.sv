@@ -30,8 +30,14 @@ module hazard_unit (
 
     logic ex_hit, mm_hit;
 
-    function automatic logic needs(input logic uses, input logic [4:0] rs, input logic [4:0] rd);
-        return uses && (rs != 5'd0) && (rs == rd);
+    // Old-style argument list: Yosys's parser (used for the FPGA build) does not accept ANSI-style function ports.
+    function automatic logic needs;
+        input logic uses;
+        input logic [4:0] rs;
+        input logic [4:0] rd;
+        begin
+            needs = uses && (rs != 5'd0) && (rs == rd);
+        end
     endfunction
 
     assign ex_hit = ex_wr && (needs(id_uses_rs1, id_rs1, ex_rd) || needs(id_uses_rs2, id_rs2, ex_rd));

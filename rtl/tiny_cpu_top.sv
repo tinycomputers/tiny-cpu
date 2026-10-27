@@ -9,6 +9,9 @@ module tiny_cpu_top
     import tiny_cpu_pkg::*;
 #(
     parameter string CORE = "SINGLE",
+    // Optional $readmemh images for the memories (FPGA builds). Empty = zeroed, as in simulation.
+    parameter string IMEM_INIT = "",
+    parameter string DMEM_INIT = "",
     // loader address width: wide enough for the larger memory
     localparam int unsigned LAW = (IMEM_AW > DMEM_AW) ? IMEM_AW : DMEM_AW
 ) (
@@ -93,13 +96,13 @@ module tiny_cpu_top
         assign dbg_fwd_a      = 2'b00;
         assign dbg_fwd_b      = 2'b00;
 
-        mem_comb #(.WORDS(IMEM_WORDS)) u_imem (
+        mem_comb #(.WORDS(IMEM_WORDS), .INIT(IMEM_INIT)) u_imem (
             .clk, .raddr(imem_raddr), .rdata(imem_rdata),
             .wmask(4'b0000), .waddr('0), .wdata(32'b0),     // IMEM is read-only to the core
             .ld_en(load_en && !load_sel), .ld_addr(load_addr[IMEM_AW-1:0]), .ld_data(load_data)
         );
 
-        mem_comb #(.WORDS(DMEM_WORDS)) u_dmem (
+        mem_comb #(.WORDS(DMEM_WORDS), .INIT(DMEM_INIT)) u_dmem (
             .clk, .raddr(dmem_raddr), .rdata(dmem_rdata),
             .wmask(dmem_wmask), .waddr(dmem_waddr), .wdata(dmem_wdata),
             .ld_en(load_en && load_sel), .ld_addr(load_addr[DMEM_AW-1:0]), .ld_data(load_data)
@@ -126,13 +129,13 @@ module tiny_cpu_top
         );
 
         // IMEM is read-only to the core. DMEM read-new: a load in EX sees the store ahead of it in MEM.
-        mem_sync #(.WORDS(IMEM_WORDS), .READ_NEW(1'b0)) u_imem (
+        mem_sync #(.WORDS(IMEM_WORDS), .READ_NEW(1'b0), .INIT(IMEM_INIT)) u_imem (
             .clk, .re(imem_re), .raddr(imem_raddr), .rdata(imem_rdata),
             .wmask(4'b0000), .waddr('0), .wdata(32'b0),
             .ld_en(load_en && !load_sel), .ld_addr(load_addr[IMEM_AW-1:0]), .ld_data(load_data)
         );
 
-        mem_sync #(.WORDS(DMEM_WORDS), .READ_NEW(1'b1)) u_dmem (
+        mem_sync #(.WORDS(DMEM_WORDS), .READ_NEW(1'b1), .INIT(DMEM_INIT)) u_dmem (
             .clk, .re(1'b1), .raddr(dmem_raddr), .rdata(dmem_rdata),
             .wmask(dmem_wmask), .waddr(dmem_waddr), .wdata(dmem_wdata),
             .ld_en(load_en && load_sel), .ld_addr(load_addr[DMEM_AW-1:0]), .ld_data(load_data)

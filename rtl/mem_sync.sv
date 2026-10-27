@@ -10,6 +10,8 @@
 module mem_sync #(
     parameter int unsigned WORDS    = 1024,
     parameter bit          READ_NEW = 1'b1,
+    // Optional $readmemh image for synthesis (FPGA builds); empty = all zeros, as in simulation.
+    parameter string       INIT     = "",
     localparam int unsigned AW      = $clog2(WORDS)
 ) (
     input  logic          clk,
@@ -26,9 +28,19 @@ module mem_sync #(
 
     logic [31:0] mem [WORDS];
 
+    // The read port returns the old word (read-first). READ_NEW is applied after the read register, as a
+    // merge of the bytes written at the same edge, so the memory itself has a plain read port that block RAM
+    // inference accepts. The value seen on `rdata` is the same as a write-first read at that edge.
+    logic [31:0] rd_q;          // word read at the last enabled edge (old contents)
+    logic [3:0]  byp_mask_q;    // bytes written at that edge, when the read returns the new bytes
+    logic [31:0] byp_data_q;    // the written data at that edge
+
     initial begin
         for (int i = 0; i < WORDS; i++) mem[i] = 32'b0;
-        rdata = 32'b0;
+        rd_q = 32'b0;
+        byp_mask_q = 4'b0;
+        byp_data_q = 32'b0;
+        if (INIT != "") $readmemh(INIT, mem);
     end
 
     always_ff @(posedge clk) begin
@@ -41,12 +53,16 @@ module mem_sync #(
         end
 
         if (re) begin
-            rdata <= mem[raddr];  // old contents; the merge below overrides written bytes
-            if (READ_NEW && !ld_en && waddr == raddr) begin
-                for (int b = 0; b < 4; b++) begin
-                    if (wmask[b]) rdata[8*b +: 8] <= wdata[8*b +: 8];
-                end
-            end
+            rd_q       <= mem[raddr];
+            byp_mask_q <= (READ_NEW && !ld_en && waddr == raddr) ? wmask : 4'b0;
+            byp_data_q <= wdata;
+        end
+    end
+
+    always_comb begin
+        rdata = rd_q;
+        for (int b = 0; b < 4; b++) begin
+            if (byp_mask_q[b]) rdata[8*b +: 8] = byp_data_q[8*b +: 8];
         end
     end
 
