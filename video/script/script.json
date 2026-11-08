@@ -1,0 +1,135 @@
+{
+  "voice": "am_michael",
+  "speed": 1.0,
+  "bpm": 120,
+  "scenes": [
+    {
+      "id": "hook",
+      "lead": 0.8,
+      "tail": 0.4,
+      "lines": [
+        {
+          "say": "What if you could watch a real processor think?",
+          "show": "What if you could watch a real processor think?"
+        },
+        {
+          "say": "This is Tiny C P U.",
+          "show": "This is TinyCPU."
+        }
+      ]
+    },
+    {
+      "id": "what",
+      "lead": 0.4,
+      "tail": 0.5,
+      "lines": [
+        {
+          "say": "A real risk five processor, written in System Verilog, compiled to Web Assembly, running live in your browser.",
+          "show": "A real RISC-V processor, written in SystemVerilog, compiled to WebAssembly, running live in your browser."
+        },
+        {
+          "say": "Nothing here is faked.",
+          "show": "Nothing here is faked."
+        }
+      ]
+    },
+    {
+      "id": "write",
+      "lead": 0.4,
+      "tail": 0.5,
+      "lines": [
+        {
+          "say": "Pick a program, or write your own.",
+          "show": "Pick a program, or write your own."
+        },
+        {
+          "say": "Hit assemble and run, and the hardware executes it.",
+          "show": "Hit assemble and run, and the hardware executes it."
+        }
+      ]
+    },
+    {
+      "id": "pipeline",
+      "lead": 0.4,
+      "tail": 0.8,
+      "lines": [
+        {
+          "say": "Watch five instructions share a five stage pipeline.",
+          "show": "Watch five instructions share a five-stage pipeline."
+        },
+        {
+          "say": "Fetch. Decode. Execute. Memory. Write back.",
+          "show": "Fetch. Decode. Execute. Memory. Write-back."
+        },
+        {
+          "say": "Step through every cycle, and watch registers, memory, and output update live.",
+          "show": "Step through every cycle, and watch registers, memory, and output update live."
+        }
+      ]
+    },
+    {
+      "id": "hazards",
+      "lead": 0.4,
+      "tail": 0.6,
+      "lines": [
+        {
+          "say": "When instructions collide, you see exactly why.",
+          "show": "When instructions collide, you see exactly why."
+        },
+        {
+          "say": "Forwarding paths. Load-use stalls. Branch flushes.",
+          "show": "Forwarding paths. Load-use stalls. Branch flushes."
+        },
+        {
+          "say": "Turn forwarding off, and watch the cycle count climb.",
+          "show": "Turn forwarding off, and watch the cycle count climb."
+        }
+      ]
+    },
+    {
+      "id": "views",
+      "lead": 0.4,
+      "tail": 0.8,
+      "lines": [
+        {
+          "say": "Zoom into the datapath. Compare programs. Explore memory as a heat map.",
+          "show": "Zoom into the datapath. Compare programs. Explore memory as a heat map."
+        }
+      ]
+    },
+    {
+      "id": "trust",
+      "lead": 0.4,
+      "tail": 0.6,
+      "lines": [
+        {
+          "say": "Forty official risk five tests. Two hundred sixty random programs. All matched against a golden model.",
+          "show": "Forty official RISC-V tests. Two hundred sixty random programs. All matched against a golden model."
+        },
+        {
+          "say": "It even fits on a real F P G A.",
+          "show": "It even fits on a real FPGA."
+        }
+      ]
+    },
+    {
+      "id": "cta",
+      "lead": 0.4,
+      "tail": 2.4,
+      "lines": [
+        {
+          "say": "Ready to look inside a computer?",
+          "show": "Ready to look inside a computer?"
+        },
+        {
+          "say": "Open Tiny C P U, right now, in your browser.",
+          "show": "Open TinyCPU, right now, in your browser."
+        },
+        {
+          "say": "Your first clock cycle is waiting.",
+          "show": "Your first clock cycle is waiting."
+        }
+      ]
+    }
+  ]
+}

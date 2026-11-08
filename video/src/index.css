@@ -1,0 +1,39 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+/* The real app's components (web/src/components) are styled with Tailwind utility classes. Scan them. */
+@source "../../web/src/components";
+
+/* Typography: Inter for UI text (same as the app), JetBrains Mono instead of the OS monospace for code and numbers. */
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Tokens copied from web/src/styles/global.css (dark theme). One source of truth in spirit: if the app changes, change here. */
+:root {
+  --bg: #0d1117;
+  --fg: #c9d1d9;
+  --muted: #8b949e;
+  --accent: #58a6ff;
+  --ok: #3fb950;
+  --err: #f85149;
+  --panel: #161b22;
+  --line: #30363d;
+  --active: #1f2d3d;
+  --warn: #d29922;
+}
+
+html,
+body {
+  margin: 0;
+  background: #0d1117;
+  font-family: "Inter Variable", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss03";
+}
+
+textarea {
+  font-family: inherit;
+}
