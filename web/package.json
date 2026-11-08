@@ -2,6 +2,7 @@
   "name": "tiny-cpu-web",
   "type": "module",
   "version": "0.1.0",
+  "packageManager": "pnpm@12.14.0",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
