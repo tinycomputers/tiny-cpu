@@ -51,3 +51,15 @@ sim/results*.xml
 
 # FPGA build products (fpga/ice40/build.sh)
 fpga/ice40/build/
+
+# Demo video (video/): render output, caches, local TTS toolchain and model weights
+video/out/
+video/.cache/
+video/.venv-tts/
+video/tts-models/
+video/scripts/_work/
+
+# generated audio (rebuild with video/scripts/make_*.py); the final MP4 is out/
+video/public/audio/*.wav
+video/public/sfx/*.wav
+video/node_modules

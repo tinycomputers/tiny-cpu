@@ -1,0 +1,161 @@
+{
+  "bpm": 120.0,
+  "beat": 0.5,
+  "total": 77.5,
+  "scenes": {
+    "hook": {
+      "duration": 4.622,
+      "lines": [
+        {
+          "show": "What if you could watch a real processor think?",
+          "start": 0.0,
+          "end": 2.413
+        },
+        {
+          "show": "This is TinyCPU.",
+          "start": 3.013,
+          "end": 4.622
+        }
+      ],
+      "start": 0.0,
+      "length": 6.0,
+      "lead": 0.8
+    },
+    "what": {
+      "duration": 8.835,
+      "lines": [
+        {
+          "show": "A real RISC-V processor, written in SystemVerilog, compiled to WebAssembly, running live in your browser.",
+          "start": 0.0,
+          "end": 6.998
+        },
+        {
+          "show": "Nothing here is faked.",
+          "start": 7.498,
+          "end": 8.835
+        }
+      ],
+      "start": 6.0,
+      "length": 10.0,
+      "lead": 0.4
+    },
+    "write": {
+      "duration": 5.555,
+      "lines": [
+        {
+          "show": "Pick a program, or write your own.",
+          "start": 0.0,
+          "end": 1.97
+        },
+        {
+          "show": "Hit assemble and run, and the hardware executes it.",
+          "start": 2.47,
+          "end": 5.555
+        }
+      ],
+      "start": 16.0,
+      "length": 6.5,
+      "lead": 0.4
+    },
+    "pipeline": {
+      "duration": 12.312,
+      "lines": [
+        {
+          "show": "Watch five instructions share a five-stage pipeline.",
+          "start": 0.0,
+          "end": 3.39
+        },
+        {
+          "show": "Fetch. Decode. Execute. Memory. Write-back.",
+          "start": 3.89,
+          "end": 6.828
+        },
+        {
+          "show": "Step through every cycle, and watch registers, memory, and output update live.",
+          "start": 7.328,
+          "end": 12.312
+        }
+      ],
+      "start": 22.5,
+      "length": 14.0,
+      "lead": 0.4
+    },
+    "hazards": {
+      "duration": 10.541,
+      "lines": [
+        {
+          "show": "When instructions collide, you see exactly why.",
+          "start": 0.0,
+          "end": 2.962
+        },
+        {
+          "show": "Forwarding paths. Load-use stalls. Branch flushes.",
+          "start": 3.462,
+          "end": 6.821
+        },
+        {
+          "show": "Turn forwarding off, and watch the cycle count climb.",
+          "start": 7.321,
+          "end": 10.541
+        }
+      ],
+      "start": 36.5,
+      "length": 12.0,
+      "lead": 0.4
+    },
+    "views": {
+      "duration": 4.909,
+      "lines": [
+        {
+          "show": "Zoom into the datapath. Compare programs. Explore memory as a heat map.",
+          "start": 0.0,
+          "end": 4.909
+        }
+      ],
+      "start": 48.5,
+      "length": 6.5,
+      "lead": 0.4
+    },
+    "trust": {
+      "duration": 10.005,
+      "lines": [
+        {
+          "show": "Forty official RISC-V tests. Two hundred sixty random programs. All matched against a golden model.",
+          "start": 0.0,
+          "end": 7.126
+        },
+        {
+          "show": "It even fits on a real FPGA.",
+          "start": 7.626,
+          "end": 10.005
+        }
+      ],
+      "start": 55.0,
+      "length": 11.5,
+      "lead": 0.4
+    },
+    "cta": {
+      "duration": 8.188,
+      "lines": [
+        {
+          "show": "Ready to look inside a computer?",
+          "start": 0.0,
+          "end": 1.912
+        },
+        {
+          "show": "Open TinyCPU, right now, in your browser.",
+          "start": 2.512,
+          "end": 5.779
+        },
+        {
+          "show": "Your first clock cycle is waiting.",
+          "start": 6.279,
+          "end": 8.188
+        }
+      ],
+      "start": 66.5,
+      "length": 11.0,
+      "lead": 0.4
+    }
+  }
+}

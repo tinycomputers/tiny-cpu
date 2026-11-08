@@ -51,8 +51,35 @@ JavaScript re-implementation of the CPU sits between you and the design.
 
 ---
 
+## 🎬 Watch the demo
+
+<p align="center">
+  <a href="docs/media/tinycpu-demo.mp4">
+    <img src="docs/media/tinycpu-demo-teaser.gif" alt="TinyCPU demo: a RISC-V CPU running a bubble sort in the browser" width="880" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="docs/media/tinycpu-demo.mp4"><strong>▶ Full 77-second demo with narration</strong></a><br/>
+  <sub>1920×1080 · the real web app and the real CPU run, nothing mocked up</sub>
+</p>
+
+| Time | Scene |
+|:---:|:---|
+| 0:00 | A real processor, running in your browser |
+| 0:06 | From SystemVerilog to WebAssembly |
+| 0:16 | Pick a program and run it |
+| 0:22 | Five instructions moving through the pipeline, stage by stage |
+| 0:36 | Forwarding, load-use stalls and branch flushes |
+| 0:48 | Datapath, program comparison and the memory heat map |
+| 0:55 | 40 official tests, 260 random programs, a golden model, an FPGA |
+| 1:06 | Open the CPU and take the first clock cycle |
+
+---
+
 ## 📑 Contents
 
+- [Watch the demo](#-watch-the-demo)
 - [What is TinyCPU?](#-what-is-tinycpu)
 - [Features](#-features)
 - [How it works](#️-how-it-works)
@@ -249,7 +276,8 @@ Run one example through the golden model: `cd sim && python -m golden.cli run ..
 | `wasm/` | Verilator and Emscripten harness: `harness.cpp`, the build script, the Node test |
 | `web/` | Astro and React app: the assembler, the views, the landing page, the docs pages |
 | `fpga/` | iCE40 top level, constraints, the synthesis script, memory image generator |
-| `docs/` | Plan, architecture, the state schema between the WASM module and the browser |
+| `docs/` | Plan, architecture, the state schema between the WASM module and the browser. `docs/media/` holds the demo video and its teaser |
+| `video/` | Remotion project that renders the demo video from the app's own components and real run data ([details](video/README.md)) |
 
 ## 🧰 Tech stack
 
